@@ -17,6 +17,9 @@ bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
 
+### Gradle ###
+.gradle/
+
 ### IntelliJ IDEA ###
 .idea
 *.iws
