@@ -1,0 +1,34 @@
+---
+name: ISSUE TEMPLATE
+about: Feature Request Template
+title: "[Feat] Title - Description"
+labels: documentation
+assignees: conradrado
+
+---
+
+# 📌 Issue
+
+## 📖 Description
+
+<!-- 작업 내용을 작성해주세요. -->
+
+---
+
+## 🎯 Goal
+
+<!-- 이 작업을 통해 달성하려는 목표를 작성해주세요. -->
+
+---
+
+## ✅ Tasks
+
+- [ ]
+- [ ]
+- [ ]
+
+---
+
+## 📎 References (Optional)
+
+<!-- 관련 문서, 링크, 이미지 등을 첨부해주세요. -->
