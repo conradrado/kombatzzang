@@ -1,0 +1,65 @@
+services:
+  postgres:
+    build:
+      context: ./docker/postgres
+    container_name: matzzang-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-matzzang}
+      POSTGRES_USER: ${DB_USERNAME:-matzzang}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-matzzang}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-matzzang} -d ${DB_NAME:-matzzang}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - matzzang-net
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    container_name: matzzang-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-matzzang}
+      DB_USERNAME: ${DB_USERNAME:-matzzang}
+      DB_PASSWORD: ${DB_PASSWORD:-matzzang}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    networks:
+      - matzzang-net
+
+  # --- 추후 추가 예정 (아직 비활성화 상태) ---------------------------------
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: matzzang-redis
+  #   ports:
+  #     - "${REDIS_PORT:-6379}:6379"
+  #   networks:
+  #     - matzzang-net
+  #
+  # kafka:
+  #   image: apache/kafka:3.8.0
+  #   container_name: matzzang-kafka
+  #   ports:
+  #     - "${KAFKA_PORT:-9092}:9092"
+  #   networks:
+  #     - matzzang-net
+  # ---------------------------------------------------------------------
+
+volumes:
+  postgres_data:
+
+networks:
+  matzzang-net:
+    driver: bridge
