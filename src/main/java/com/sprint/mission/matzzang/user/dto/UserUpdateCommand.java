@@ -1,6 +1,6 @@
 package com.sprint.mission.matzzang.user.dto;
 
-public record UserUpdateRequest(
+public record UserUpdateCommand(
         String username,
         String profileImage
 ) {

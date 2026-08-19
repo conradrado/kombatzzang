@@ -1,7 +1,7 @@
 package com.sprint.mission.matzzang.user.entity;
 
 import com.sprint.mission.matzzang.common.entity.UpdatableEntity;
-import com.sprint.mission.matzzang.user.contants.UserRole;
+import com.sprint.mission.matzzang.user.constants.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

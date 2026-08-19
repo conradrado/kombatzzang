@@ -1,7 +1,7 @@
 package com.sprint.mission.matzzang.user.dto;
 
 import com.sprint.mission.matzzang.user.entity.User;
-import com.sprint.mission.matzzang.user.contants.UserRole;
+import com.sprint.mission.matzzang.user.constants.UserRole;
 import java.time.Instant;
 
 public record UserResponse(
