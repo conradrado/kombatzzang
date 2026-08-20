@@ -1,4 +1,4 @@
-// Use DBML to define your database structure
+ㅇ// Use DBML to define your database structure
 // Docs: https://dbml.dbdiagram.io/docs
 
 Enum fight_rule {
