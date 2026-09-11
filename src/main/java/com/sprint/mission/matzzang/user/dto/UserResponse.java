@@ -8,9 +8,10 @@ public record UserResponse(
         Long id,
         String username,
         String email,
-        String profileImage,
+        String profileImageKey,
         UserRole role,
-        Instant createdAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
 
     public static UserResponse from(User user) {
@@ -18,9 +19,10 @@ public record UserResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
-                user.getProfileImage(),
+                user.getProfileImageKey(),
                 user.getRole(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.getUpdatedAt()
         );
     }
 }
