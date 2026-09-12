@@ -24,31 +24,31 @@ public class User extends UpdatableEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(name = "profile_image")
-    private String profileImage;
+    @Column(name = "profile_image_key")
+    private String profileImageKey;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;
 
     @Builder
-    private User(String username, String email, String password, String profileImage, UserRole role) {
+    private User(String username, String email, String password, String profileImageKey, UserRole role) {
         this.username = username;
         this.email = email;
         this.password = password;
-        this.profileImage = profileImage;
+        this.profileImageKey = profileImageKey;
         this.role = role;
     }
 
-    public void updateProfile(String username, String profileImage) {
+    public void updateProfile(String username, String profileImageKey) {
         if (username != null) {
             this.username = username;
         }
-        if (profileImage != null) {
-            this.profileImage = profileImage;
+        if (profileImageKey != null) {
+            this.profileImageKey = profileImageKey;
         }
     }
 }
