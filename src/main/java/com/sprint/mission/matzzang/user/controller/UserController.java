@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -53,7 +54,8 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserList(cursor, size));
     }
 
-    @Operation(summary = "사용자 정보 수정")
+    @Operation(summary = "사용자 정보 수정", description = "본인 또는 ADMIN만 수정할 수 있다.")
+    @PreAuthorize("@userAccessGuard.isSelfOrAdmin(authentication, #userId)")
     @PatchMapping("/{userId}")
     public ResponseEntity<UserResponse> updateUser(
             @Parameter(description = "사용자 ID") @PathVariable Long userId,
@@ -62,8 +64,9 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(userId, command));
     }
 
-    @Operation(summary = "사용자 삭제")
+    @Operation(summary = "사용자 삭제", description = "본인 또는 ADMIN만 삭제할 수 있다.")
     @ApiResponse(responseCode = "204", description = "삭제됨")
+    @PreAuthorize("@userAccessGuard.isSelfOrAdmin(authentication, #userId)")
     @DeleteMapping("/{userId}")
     public ResponseEntity<Void> deleteUser(@Parameter(description = "사용자 ID") @PathVariable Long userId) {
         userService.deleteUser(userId);
