@@ -46,3 +46,7 @@ out/
 ### Docker ###
 .env
 !.env
+
+### harness ###
+harness/runs/
+__pycache__/
