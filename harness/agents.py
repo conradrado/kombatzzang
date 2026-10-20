@@ -62,8 +62,9 @@ class ClaudeAgents:
             cmd += ["--allowedTools", ",".join(allowed)]
         if disallowed:
             cmd += ["--disallowedTools", ",".join(disallowed)]
-        if self.cfg["claude"].get("model"):
-            cmd += ["--model", self.cfg["claude"]["model"]]
+        model = self.cfg.get("models", {}).get(role)
+        if model:
+            cmd += ["--model", model]
 
         cost = 0.0
         last_err = None

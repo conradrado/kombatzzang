@@ -1,8 +1,8 @@
 [limits]
 max_iterations = 5
 max_replans = 1
-max_total_cost_usd = 20.0
-max_cost_per_call_usd = 3.0
+max_total_cost_usd = 1.0
+max_cost_per_call_usd = 1.0
 agent_timeout_sec = 900
 verify_timeout_sec = 900
 
@@ -14,6 +14,9 @@ log_tail_chars = 6000
 [git]
 protected_branches = ["main", "dev"]
 
-[claude]
-# 비워두면 claude CLI 기본 모델을 사용한다.
-model = ""
+# 역할별 모델. claude --model 에 그대로 전달되므로 별칭(opus, sonnet, haiku) 또는 전체 모델 ID 를 쓴다.
+# 빈 문자열이면 claude CLI 기본 모델을 사용한다.
+[models]
+planner = "opus"
+generator = "sonnet"
+evaluator = "opus"
