@@ -6,8 +6,8 @@ build/
 !**/src/test/**/build/
 
 ### claude ###
-.claude
 .claude/*
+!.claude/skills/
 
 ### STS ###
 .apt_generated
@@ -46,3 +46,7 @@ out/
 ### Docker ###
 .env
 !.env
+
+### harness ###
+harness/runs/
+__pycache__/
