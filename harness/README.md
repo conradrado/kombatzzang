@@ -13,8 +13,8 @@ python harness/tests/test_harness.py        # 단위 테스트 (claude/gradle �
 
 ## 동작
 1. **Planner** (읽기 전용): `plan.json` — tasks, acceptance criteria, 수정 허용 경로, 테스트 필터
-2. **Generator**: 코드 수정. git 상태 변경 명령은 차단
-3. **가드**: 허용 경로 밖 변경은 되돌림 (`.git/ .github/ .claude/ harness/` 는 항상 금지)
+2. **Generator**: 코드 수정. git 상태 변경 명령은 차단. `Edit`/`Write`/`Bash` 호출 직전에 PreToolUse 훅(`hooks/scope_guard.py`)이 허용 경로 밖 쓰기를 거부한다
+3. **가드**: 훅이 놓친 허용 경로 밖 변경을 사후에 되돌림 (`.git/ .github/ .claude/ harness/` 는 항상 금지)
 4. **Verify**: 하네스가 `gradlew test` 를 직접 실행
 5. **Evaluator** (읽기 전용, 별도 세션): criteria 별 PASS/FAIL + 피드백
 
@@ -26,6 +26,7 @@ python harness/tests/test_harness.py        # 단위 테스트 (claude/gradle �
 ## 안전장치
 - `main` / `dev` 브랜치에서는 실행을 거부한다.
 - 하네스는 commit / push 를 하지 않는다. 결과는 작업 트리에 남으므로 직접 검토 후 커밋한다.
+- Generator 의 쓰기 범위는 두 겹으로 막는다. 1차는 PreToolUse 훅(호출 시점 거부), 2차는 `guard.py` 의 사후 되돌리기다. 훅은 호출마다 `--settings` 로만 주입하므로 `.claude/settings.json` 과 일반 Claude Code 세션에는 영향이 없다.
 - 호출마다 `--no-session-persistence --strict-mcp-config --disable-slash-commands` 로 컨텍스트를 줄인다.
 
 ## 산출물 (`harness/runs/<run-id>/`, gitignore 대상)
@@ -43,6 +44,7 @@ python harness/tests/test_harness.py        # 단위 테스트 (claude/gradle �
 | `agents.py` | `ClaudeAgents` 클래스. `claude -p` subprocess 호출, 재시도, 출력 검증 |
 | `schemas.py` | Plan / Generator / Evaluation JSON 스키마와 `validate()` |
 | `guard.py` | git 스냅샷으로 변경 파일을 추적하고, 허용 경로 밖 변경을 되돌림 |
+| `hooks/scope_guard.py` | Generator 전용 PreToolUse 훅. 허용 경로 밖 `Edit`/`Write`와 파일을 쓰는 `Bash` 명령을 호출 시점에 거부 |
 | `verify.py` | `gradlew test` 를 직접 실행하고 종료 코드로 통과 여부 판정 |
 | `prompts/*.md` | 역할별 시스템 프롬프트 (`planner.md` `generator.md` `evaluator.md`) |
 
@@ -53,7 +55,8 @@ run.py
  ├─ guard.current_branch()        → 보호 브랜치 검사
  ├─ ClaudeAgents(cfg)             → agents.py
  │    ├─ config.PROMPTS_DIR, REPO_ROOT 상수를 import
- │    └─ schemas.PLAN/GENERATOR/EVALUATION_SCHEMA, validate() 를 import
+ │    ├─ schemas.PLAN/GENERATOR/EVALUATION_SCHEMA, validate() 를 import
+ │    └─ (generate 시) claude 가 hooks/scope_guard.py 를 별도 프로세스로 실행 → 훅이 guard.in_scope() 재사용
  └─ Harness(cfg, agents, REPO_ROOT, run_dir)   → loop.py
       ├─ guard.*                  (스냅샷, 범위 검사, 되돌리기, diff)
       └─ verify.run_verify        (테스트 실행)
@@ -83,8 +86,8 @@ run.py
 
 4. **반복 (`Harness.run` 의 while → `Harness._iterate`)**
    반복 시작 전에 비용 상한(`max_total_cost_usd`)을 확인하고, 넘었으면 `ABORTED` 로 끝낸다. 반복마다 `runs/<run-id>/iter-NN/` 을 만든다.
-   1. **Generator**: `state["feedback"]` 를 포함한 프롬프트로 `agents.generate()` 를 호출한다. → `generator.json`
-   2. **범위 검사**: `guard.snapshot()` 을 다시 찍어 `baseline` 과 비교(`changed_since`)하고, `split_violations` 로 `plan["allowed_paths"]` 안/밖을 나눈다. 밖의 변경은 `guard.revert()` 가 되돌린다. 추적 파일은 `git checkout HEAD -- <path>`, 새 파일은 삭제한다. `baseline` 부터 더러웠던 파일은 복원할 수 없어 `unreverted` 로만 보고한다. 범위 안 변경은 `guard.build_diff()` 로 diff 를 만든다. → `diff.patch`
+   1. **Generator**: `state["feedback"]` 를 포함한 프롬프트와 `plan["allowed_paths"]` 로 `agents.generate()` 를 호출한다. 이 동안 PreToolUse 훅이 허용 경로 밖 쓰기를 거부한다. (아래 "쓰기 범위 훅" 참고) → `generator.json`
+   2. **범위 검사** (훅이 놓친 변경의 안전망): `guard.snapshot()` 을 다시 찍어 `baseline` 과 비교(`changed_since`)하고, `split_violations` 로 `plan["allowed_paths"]` 안/밖을 나눈다. 밖의 변경은 `guard.revert()` 가 되돌린다. 추적 파일은 `git checkout HEAD -- <path>`, 새 파일은 삭제한다. `baseline` 부터 더러웠던 파일은 복원할 수 없어 `unreverted` 로만 보고한다. 범위 안 변경은 `guard.build_diff()` 로 diff 를 만든다. → `diff.patch`
    3. **Verify**: `verifier`(기본 `verify.run_verify`)가 `gradlew test [--tests <필터>...]` 를 직접 실행한다. 종료 코드 0 이고 시간 초과가 아니면 통과다. 로그 전체는 `verify.log`, 끝부분(`log_tail_chars`)과 실패 라인(최대 30줄)은 `VerifyResult` 로 돌려준다.
    4. **Evaluator**: 목표, acceptance criteria, Generator 보고, 테스트 결과, 범위 위반, diff 를 담아 `agents.evaluate()` 를 호출한다. → `evaluation.json`
    5. **판정**: 아래 네 조건이 모두 참이면 성공이다.
@@ -115,7 +118,7 @@ run.py
 | evaluator | `EVALUATION_SCHEMA` | `Read,Grep,Glob` (읽기 전용) |
 
 1. 명령어를 조립한다: `claude -p --output-format json --json-schema <스키마> --append-system-prompt-file prompts/<role>.md --tools ... --max-budget-usd <max_cost_per_call_usd> --no-session-persistence --strict-mcp-config --disable-slash-commands`
-2. 허용/차단 도구가 있으면 `--allowedTools` / `--disallowedTools` 를 붙인다.
+2. 허용/차단 도구가 있으면 `--allowedTools` / `--disallowedTools` 를 붙인다. `generate()` 에서 `allowed_paths` 가 넘어오면 `--settings`(훅 등록 JSON)도 붙이고 환경변수 `HARNESS_SCOPE` 를 추가한다.
 3. `cfg["models"][role]` 이 비어 있지 않으면 `--model` 을 붙인다. 없거나 빈 문자열이면 CLI 기본 모델을 쓴다.
 4. 프롬프트는 인자가 아니라 **stdin** 으로 전달한다. (Windows 명령줄 길이 제한 회피) 작업 디렉터리는 `REPO_ROOT`, 제한 시간은 `agent_timeout_sec` 이다.
 5. 응답 JSON 을 검사한다. 아래 중 하나에 걸리면 `last_err` 를 기록하고 재시도한다. (최대 `attempts=2`)
@@ -124,5 +127,19 @@ run.py
    - `structured_output` 이 없음
    - `schemas.validate()` 의 스키마 위반
 6. 호출마다 `total_cost_usd` 를 `cost` 에 더한다. 재시도 비용도 포함한다. 성공하면 `(data, cost)` 를, 모두 실패하면 `AgentError` 를 던진다. 시간 초과는 재시도 없이 바로 `AgentError` 다.
+
+### 쓰기 범위 훅 (`hooks/scope_guard.py`)
+Generator 가 허용 경로 밖 파일을 쓰려는 순간 호출 시점에 막는다. 쓴 뒤에 되돌리는 `guard.py` 와 달리 거부 사유가 모델에게 바로 돌아가므로 같은 턴에서 스스로 고칠 수 있다.
+
+1. `ClaudeAgents.generate()` 가 허용 경로와 `repo_root` 를 JSON 으로 만들어 환경변수 `HARNESS_SCOPE` 에 담는다.
+2. `_scope_hook_settings()` 가 `Edit|Write|NotebookEdit|Bash` 의 PreToolUse 훅으로 `scope_guard.py` 를 등록하는 JSON 문자열을 반환하고, `_call` 이 이를 `--settings` 로 넘긴다. 등록은 claude CLI 가 하며 그 호출 하나에만 적용된다.
+3. Generator 가 해당 도구를 쓰려 할 때마다 claude 가 `scope_guard.py` 를 별도 프로세스로 실행한다. 이 프로세스는 환경변수를 상속받으므로 `HARNESS_SCOPE` 로 허용 경로를 읽는다.
+4. 판정:
+   - `Edit`/`Write`/`NotebookEdit`: 경로를 저장소 기준 상대 경로로 바꿔 `guard.in_scope()` 로 검사한다. 저장소 밖 경로(`..` 탈출)와 `ALWAYS_FORBIDDEN` 도 거부한다.
+   - `Bash`: `>` 리다이렉션, `tee`, `sed -i`, `mv`, `cp`, `rm`, `Set-Content` 등 쓰기 패턴이 보이면 거부한다. `2>&1` 과 `/dev/null` 은 통과시킨다. 문자열 매칭이라 완전하지 않고 오탐이 있을 수 있다.
+   - 거부는 stdout 으로 `permissionDecision: "deny"` JSON 을 내서 한다. 통과는 아무것도 출력하지 않는다.
+5. `HARNESS_SCOPE` 가 없으면 아무것도 막지 않는다. 하네스 밖에서 실행돼도 일반 작업을 방해하지 않는다.
+
+훅이 놓친 변경(Bash 로 우회한 쓰기 등)은 위 "범위 검사" 단계가 사후에 되돌린다.
 
 인증은 하네스가 다루지 않는다. `claude` CLI 의 로그인 상태 또는 환경 변수 `ANTHROPIC_API_KEY` 를 CLI 가 그대로 사용한다.

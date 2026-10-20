@@ -2,6 +2,8 @@
 
 실행: python harness/tests/test_harness.py
 """
+import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -50,7 +52,7 @@ class FakeAgents:
         self.plans += 1
         return dict(PLAN), 0.1
 
-    def generate(self, prompt):
+    def generate(self, prompt, allowed_paths=None):
         self.gen_calls += 1
         self.generate_fn(self.repo, self.gen_calls)
         return {"summary": "x", "changed_files": []}, 0.1
@@ -147,6 +149,62 @@ class GuardTest(unittest.TestCase):
             self.assertEqual(guard.changed_since(base, guard.snapshot(repo)), [])
             (repo / "dirty.txt").write_text("2", encoding="utf-8")
             self.assertEqual(guard.changed_since(base, guard.snapshot(repo)), ["dirty.txt"])
+
+
+class ScopeGuardHookTest(unittest.TestCase):
+    """PreToolUse 훅: stdin 이벤트 -> 거부 사유(None 이면 통과)."""
+    HOOK = Path(__file__).resolve().parents[1] / "hooks" / "scope_guard.py"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve()
+        self.scope = {"repo_root": str(self.root), "allowed_paths": ["src/main/**"]}
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def decide(self, tool, **tool_input):
+        sys.path.insert(0, str(self.HOOK.parent))
+        import scope_guard
+        return scope_guard.decide({"tool_name": tool, "tool_input": tool_input}, self.scope)
+
+    def test_write_inside_scope_allowed(self):
+        self.assertIsNone(self.decide("Edit", file_path=str(self.root / "src/main/A.java")))
+        self.assertIsNone(self.decide("Write", file_path="src/main/A.java"))  # 상대 경로
+
+    def test_write_outside_scope_denied(self):
+        self.assertIn("허용 경로 밖", self.decide("Write", file_path=str(self.root / "README.md")))
+
+    def test_always_forbidden_denied_even_if_allowed(self):
+        self.scope["allowed_paths"] = ["**"]
+        self.assertIsNotNone(self.decide("Edit", file_path=str(self.root / "harness/run.py")))
+        self.assertIsNotNone(self.decide("Edit", file_path=str(self.root / ".claude/x.md")))
+
+    def test_path_escaping_repo_denied(self):
+        self.assertIn("저장소 밖", self.decide("Edit", file_path=str(self.root / "src/main/../../../etc/x")))
+        self.assertIsNotNone(self.decide("Edit", file_path=str(self.root.parent / "other.txt")))
+
+    def test_bash_writes_denied_reads_allowed(self):
+        self.assertIsNotNone(self.decide("Bash", command="echo hi > README.md"))
+        self.assertIsNotNone(self.decide("Bash", command="./gradlew test && sed -i s/a/b/ x"))
+        self.assertIsNotNone(self.decide("Bash", command="cp a b"))
+        self.assertIsNone(self.decide("Bash", command="./gradlew test 2>&1"))
+        self.assertIsNone(self.decide("Bash", command="git diff > /dev/null"))
+        self.assertIsNone(self.decide("Bash", command="git status"))
+
+    def test_other_tools_pass(self):
+        self.assertIsNone(self.decide("Read", file_path=str(self.root / "README.md")))
+
+    def test_process_denies_via_json_and_passes_without_env(self):
+        event = json.dumps({"tool_name": "Write", "tool_input": {"file_path": str(self.root / "x.txt")}})
+        env = {**os.environ, "HARNESS_SCOPE": json.dumps(self.scope)}
+        out = subprocess.run([sys.executable, str(self.HOOK)], input=event, env=env,
+                             capture_output=True, text=True, encoding="utf-8").stdout
+        self.assertEqual(json.loads(out)["hookSpecificOutput"]["permissionDecision"], "deny")
+        env.pop("HARNESS_SCOPE")
+        out = subprocess.run([sys.executable, str(self.HOOK)], input=event, env=env,
+                             capture_output=True, text=True, encoding="utf-8").stdout
+        self.assertEqual(out, "")
 
 
 class SchemaTest(unittest.TestCase):
