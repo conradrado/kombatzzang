@@ -3,6 +3,7 @@ package com.sprint.mission.matzzang.user.service;
 import com.sprint.mission.matzzang.common.dto.CursorPageResponse;
 import com.sprint.mission.matzzang.user.constants.UserRole;
 import com.sprint.mission.matzzang.user.dto.UserCreateCommand;
+import com.sprint.mission.matzzang.user.dto.UserRegionUpdateCommand;
 import com.sprint.mission.matzzang.user.dto.UserResponse;
 import com.sprint.mission.matzzang.user.dto.UserUpdateCommand;
 import com.sprint.mission.matzzang.user.entity.User;
@@ -74,6 +75,13 @@ public class UserService {
         }
 
         user.updateProfile(command.username(), command.profileImageKey());
+        return UserResponse.from(user);
+    }
+
+    @Transactional
+    public UserResponse updateRegion(Long userId, UserRegionUpdateCommand command) {
+        User user = findUserById(userId);
+        user.updateRegion(command.region());
         return UserResponse.from(user);
     }
 
