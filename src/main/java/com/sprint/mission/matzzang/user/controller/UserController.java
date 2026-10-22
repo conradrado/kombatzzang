@@ -2,6 +2,7 @@ package com.sprint.mission.matzzang.user.controller;
 
 import com.sprint.mission.matzzang.common.dto.CursorPageResponse;
 import com.sprint.mission.matzzang.user.dto.UserCreateCommand;
+import com.sprint.mission.matzzang.user.dto.UserRegionUpdateCommand;
 import com.sprint.mission.matzzang.user.dto.UserResponse;
 import com.sprint.mission.matzzang.user.dto.UserUpdateCommand;
 import com.sprint.mission.matzzang.user.service.UserService;
@@ -62,6 +63,16 @@ public class UserController {
             @RequestBody UserUpdateCommand command
     ) {
         return ResponseEntity.ok(userService.updateUser(userId, command));
+    }
+
+    @Operation(summary = "사용자 지역 변경", description = "본인 또는 ADMIN만 변경할 수 있다.")
+    @PreAuthorize("@userAccessGuard.isSelfOrAdmin(authentication, #userId)")
+    @PatchMapping("/{userId}/region")
+    public ResponseEntity<UserResponse> updateRegion(
+            @Parameter(description = "사용자 ID") @PathVariable Long userId,
+            @Valid @RequestBody UserRegionUpdateCommand command
+    ) {
+        return ResponseEntity.ok(userService.updateRegion(userId, command));
     }
 
     @Operation(summary = "사용자 삭제", description = "본인 또는 ADMIN만 삭제할 수 있다.")
