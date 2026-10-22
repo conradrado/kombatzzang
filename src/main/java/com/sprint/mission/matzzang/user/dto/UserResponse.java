@@ -1,5 +1,6 @@
 package com.sprint.mission.matzzang.user.dto;
 
+import com.sprint.mission.matzzang.user.constants.Region;
 import com.sprint.mission.matzzang.user.entity.User;
 import com.sprint.mission.matzzang.user.constants.UserRole;
 import java.time.Instant;
@@ -10,6 +11,7 @@ public record UserResponse(
         String email,
         String profileImageKey,
         UserRole role,
+        Region region,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -21,6 +23,7 @@ public record UserResponse(
                 user.getEmail(),
                 user.getProfileImageKey(),
                 user.getRole(),
+                user.getRegion(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );

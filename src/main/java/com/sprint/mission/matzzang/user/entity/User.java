@@ -1,6 +1,7 @@
 package com.sprint.mission.matzzang.user.entity;
 
 import com.sprint.mission.matzzang.common.entity.UpdatableEntity;
+import com.sprint.mission.matzzang.user.constants.Region;
 import com.sprint.mission.matzzang.user.constants.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -34,6 +35,10 @@ public class User extends UpdatableEntity {
     @Column(nullable = false)
     private UserRole role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "region", length = 20)
+    private Region region;
+
     @Builder
     private User(String username, String email, String password, String profileImageKey, UserRole role) {
         this.username = username;
@@ -41,6 +46,10 @@ public class User extends UpdatableEntity {
         this.password = password;
         this.profileImageKey = profileImageKey;
         this.role = role;
+    }
+
+    public void updateRegion(Region region) {
+        this.region = region;
     }
 
     public void updateProfile(String username, String profileImageKey) {
