@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import branching
 import guard
+import publish
 from config import load_config
 from loop import ABORTED, SUCCESS, Harness
 from schemas import SchemaError, validate, PLAN_SCHEMA
@@ -246,6 +247,70 @@ class BranchingTest(unittest.TestCase):
             branching.checkout(repo, "feature/1-a", "dev")  # 이미 있으면 이동만
             self.assertEqual(guard.current_branch(repo), "feature/1-a")
             self.assertEqual(branching.list_branches(repo), ["feature/1-a"])
+
+
+class PublishTest(unittest.TestCase):
+    FILES = ["src/main/A.java", "src/main/B.java", "src/main/C.java"]
+
+    def test_check_commits_requires_each_file_exactly_once(self):
+        ok = [{"files": ["src/main/A.java", "src/main/B.java"]}, {"files": ["src/main/C.java"]}]
+        publish.check_commits(ok, self.FILES)
+        for bad in ([{"files": ["src/main/A.java"]}],  # 누락
+                    ok + [{"files": ["src/main/A.java"]}],  # 중복
+                    ok + [{"files": ["x.java"]}],  # 목록에 없는 파일
+                    ok + [{"files": []}], []):
+            with self.assertRaises(publish.PublishError):
+                publish.check_commits(bad, self.FILES)
+
+    def test_commit_message_and_issue(self):
+        self.assertEqual(publish.issue_of("feature/83-user-region-update"), 83)
+        self.assertIsNone(publish.issue_of("chore/x"))
+        c = {"type": "Feat", "subject": " 유저 - 지역 변경 API 추가 ", "body": "왜"}
+        self.assertEqual(publish.commit_message(c, 83), ("Feat: 유저 - 지역 변경 API 추가 (#83)", "왜"))
+        self.assertEqual(publish.commit_message({**c, "body": None}, None), ("Feat: 유저 - 지역 변경 API 추가", ""))
+
+    def test_plan_commits_retries_with_reason_then_gives_up(self):
+        class Fake:
+            def __init__(self, answers):
+                self.answers, self.prompts = list(answers), []
+
+            def commit_plan(self, prompt):
+                self.prompts.append(prompt)
+                return {"commits": self.answers.pop(0)}, 0.1
+        good = [{"type": "Feat", "subject": "s", "files": ["a"]}]
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(tmp)
+            state = {"goal": "g", "plan": PLAN}
+            (repo / "a").write_text("x", encoding="utf-8")
+            agents = Fake([[], good])
+            commits, cost = publish.plan_commits(agents, repo, state, ["a"])
+            self.assertEqual(commits, good)
+            self.assertAlmostEqual(cost, 0.2)
+            self.assertIn("거부된 이유", agents.prompts[1])
+            with self.assertRaises(publish.PublishError):
+                publish.plan_commits(Fake([[], []]), repo, state, ["a"])
+
+    def test_publish_makes_one_commit_per_group_and_leaves_other_staged_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(tmp)
+            sh(repo, "git", "checkout", "-q", "-b", "feature/7-x")
+            (repo / "other.txt").write_text("staged earlier", encoding="utf-8")
+            sh(repo, "git", "add", "other.txt")
+            h = Harness(load_config(), None, repo, repo.parent / (repo.name + "-run"), log=lambda *_: None)
+            state = h.new_state("goal")
+            state["plan"] = dict(PLAN)
+            (repo / "src/main/A.java").write_text("a", encoding="utf-8")
+            (repo / "src/main/B.java").write_text("b", encoding="utf-8")
+            files = publish.collect_changes(repo, state)
+            self.assertEqual(files, ["src/main/A.java", "src/main/B.java"])
+            made = publish.make_commits(repo, [
+                {"type": "Feat", "subject": "a", "files": ["src/main/A.java"]},
+                {"type": "Test", "subject": "b", "body": "why", "files": ["src/main/B.java"]},
+            ], 7, log=lambda *_: None)
+            self.assertEqual([m["subject"] for m in made], ["Feat: a (#7)", "Test: b (#7)"])
+            log = guard.git(repo, "log", "--format=%s", "-3").stdout.splitlines()
+            self.assertEqual(log[:2], ["Test: b (#7)", "Feat: a (#7)"])
+            self.assertEqual(guard.git(repo, "diff", "--cached", "--name-only").stdout.split(), ["other.txt"])
 
 
 class SchemaTest(unittest.TestCase):

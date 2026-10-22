@@ -81,6 +81,37 @@ ROUTE_SCHEMA = {
     },
 }
 
+COMMIT_TYPES = ["Feat", "Fix", "Refactor", "Test", "Docs", "Chore"]
+
+COMMIT_SCHEMA = {
+    "type": "object",
+    "required": ["commits"],
+    "properties": {
+        "commits": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["type", "subject", "files"],
+                "properties": {
+                    "type": {"type": "string", "enum": COMMIT_TYPES},
+                    "subject": {"type": "string"},  # "도메인 - 설명" (type 접두사와 이슈 번호는 하네스가 붙인다)
+                    "body": {"type": "string"},
+                    "files": {"type": "array", "items": {"type": "string"}},
+                },
+            },
+        },
+    },
+}
+
+PR_SCHEMA = {
+    "type": "object",
+    "required": ["title", "body"],
+    "properties": {
+        "title": {"type": "string"},
+        "body": {"type": "string"},
+    },
+}
+
 _TYPES = {
     "object": dict,
     "array": list,

@@ -7,6 +7,7 @@ python harness/run.py "<목표>"              # 새 run
 python harness/run.py --goal-file goal.md
 python harness/run.py --resume <run-id>     # 중단된 run 이어서
 python harness/run.py "<목표>" --no-branch   # 이슈/브랜치 탐색 없이 현재 브랜치에서 실행
+python harness/run.py "<목표>" --no-commit   # 성공해도 커밋/PR 초안을 만들지 않음
 python harness/run.py "<목표>" --yes         # 새 이슈 등록을 확인 없이 승인
 python harness/tests/test_harness.py        # 단위 테스트 (claude/gradle 불필요)
 ```
@@ -25,6 +26,8 @@ python harness/tests/test_harness.py        # 단위 테스트 (claude/gradle �
 4. **Verify**: 하네스가 `gradlew test` 를 직접 실행
 5. **Evaluator** (읽기 전용, 별도 세션): criteria 별 PASS/FAIL + 피드백
 
+6. **Publish** (성공한 run 만, `publish.py`, `--no-commit` 으로 생략): 이번 run 에서 바뀐 범위 안 파일을 모아 **Committer**(읽기 전용)에게 논리 단위 묶음을 받는다. 모든 파일이 정확히 한 커밋에 한 번씩 들어갔는지 하네스가 검증하고(실패 시 사유를 알려 1회 재시도), `Type: 도메인 - 설명 (#이슈)` 제목으로 순서대로 `git commit --only` 한다. 이어서 **PR Writer**(읽기 전용)가 `prTemplate.md` 양식의 제목/본문을 `pr-title.txt` `pr-body.md` 로 남긴다. push 와 PR 등록은 하지 않고, 등록 명령만 출력한다.
+
 성공 = 테스트 green **그리고** Evaluator PASS **그리고** 모든 criteria 충족 **그리고** 범위 위반 없음.
 
 같은 실패가 연속 2회 반복되면 Planner 를 다시 부르고(`max_replans`), 그래도 반복되면 중단한다.
@@ -32,12 +35,12 @@ python harness/tests/test_harness.py        # 단위 테스트 (claude/gradle �
 
 ## 안전장치
 - `main` / `dev` 브랜치에서는 실행을 거부한다.
-- 하네스는 commit / push 를 하지 않는다. 결과는 작업 트리에 남으므로 직접 검토 후 커밋한다.
+- 에이전트(Generator 등)는 commit / push / `gh` 를 쓸 수 없다. 커밋은 성공한 run 의 Publish 단계에서 **하네스가** 만들고, push 와 PR 등록은 하지 않는다. 실패하거나 `--no-commit` 이면 결과가 작업 트리에 남는다.
 - Generator 의 쓰기 범위는 두 겹으로 막는다. 1차는 PreToolUse 훅(호출 시점 거부), 2차는 `guard.py` 의 사후 되돌리기다. 훅은 호출마다 `--settings` 로만 주입하므로 `.claude/settings.json` 과 일반 Claude Code 세션에는 영향이 없다.
 - 호출마다 `--no-session-persistence --strict-mcp-config --disable-slash-commands` 로 컨텍스트를 줄인다.
 
 ## 산출물 (`harness/runs/<run-id>/`, gitignore 대상)
-`goal.md` `plan.json` `state.json` `result.json` `iter-NN/{generator.json, diff.patch, verify.log, evaluation.json}`
+`goal.md` `plan.json` `state.json` `result.json` `iter-NN/{generator.json, diff.patch, verify.log, evaluation.json}` `commits.json` `pr-title.txt` `pr-body.md`
 
 ## 내부 동작 흐름
 
@@ -52,8 +55,9 @@ python harness/tests/test_harness.py        # 단위 테스트 (claude/gradle �
 | `schemas.py` | Plan / Generator / Evaluation JSON 스키마와 `validate()` |
 | `guard.py` | git 스냅샷으로 변경 파일을 추적하고, 허용 경로 밖 변경을 되돌림 |
 | `hooks/scope_guard.py` | Generator 전용 PreToolUse 훅. 허용 경로 밖 `Edit`/`Write`와 파일을 쓰는 `Bash` 명령을 호출 시점에 거부 |
+| `publish.py` | 성공 후 변경 수집, Committer 묶음 검증, 단위 커밋 생성, PR 초안 저장 |
 | `verify.py` | `gradlew test` 를 직접 실행하고 종료 코드로 통과 여부 판정 |
-| `prompts/*.md` | 역할별 시스템 프롬프트 (`planner.md` `generator.md` `evaluator.md`) |
+| `prompts/*.md` | 역할별 시스템 프롬프트 (`planner.md` `generator.md` `evaluator.md` `router.md` `committer.md` `pr_writer.md`) |
 
 ### 의존 관계
 ```

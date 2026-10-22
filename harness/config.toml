@@ -23,6 +23,8 @@ assignee_env = "HARNESS_ASSIGNEE"   # 새 이슈 담당자를 읽을 환경변�
 # 빈 문자열이면 claude CLI 기본 모델을 사용한다.
 [models]
 router = "sonnet"
+committer = "sonnet"
+pr_writer = "sonnet"
 planner = "opus"
 generator = "sonnet"
 evaluator = "opus"
