@@ -1,6 +1,7 @@
 package com.sprint.mission.matzzang.post.entity;
 
 import com.sprint.mission.matzzang.common.entity.BaseEntity;
+import com.sprint.mission.matzzang.common.entity.UpdatableEntity;
 import com.sprint.mission.matzzang.post.constants.PostStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,7 +17,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "posts")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Post extends BaseEntity {
+public class Post extends UpdatableEntity{
 
     @Column(nullable = false)
     private String title;
