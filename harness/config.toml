@@ -13,10 +13,16 @@ log_tail_chars = 6000
 
 [git]
 protected_branches = ["main", "dev"]
+base_branch = "dev"          # 새 브랜치를 따 오는 기준 브랜치
+
+
+# #env:HARNESS_ASSIGNEE = "담당자"
+assignee_env = "HARNESS_ASSIGNEE"   # 새 이슈 담당자를 읽을 환경변수 이름. 값이 없으면 담당자 없이 등록한다.
 
 # 역할별 모델. claude --model 에 그대로 전달되므로 별칭(opus, sonnet, haiku) 또는 전체 모델 ID 를 쓴다.
 # 빈 문자열이면 claude CLI 기본 모델을 사용한다.
 [models]
+router = "sonnet"
 planner = "opus"
 generator = "sonnet"
 evaluator = "opus"
