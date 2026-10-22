@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 from config import HARNESS_DIR, PROMPTS_DIR, REPO_ROOT
-from schemas import (EVALUATION_SCHEMA, GENERATOR_SCHEMA, PLAN_SCHEMA,
-                     ROUTE_SCHEMA, SchemaError, validate)
+from schemas import (COMMIT_SCHEMA, EVALUATION_SCHEMA, GENERATOR_SCHEMA, PLAN_SCHEMA,
+                     PR_SCHEMA, ROUTE_SCHEMA, SchemaError, validate)
 
 # Planner / Evaluator 는 코드를 수정하지 않으므로 읽기 도구만 열어 준다.
 READ_ONLY_TOOLS = "Read,Grep,Glob"
@@ -78,6 +78,14 @@ class ClaudeAgents:
     def evaluate(self, prompt):
         """Generator 결과를 평가해 판정(EVALUATION_SCHEMA)을 만든다. 읽기 전용."""
         return self._call("evaluator", prompt, EVALUATION_SCHEMA, READ_ONLY_TOOLS)
+
+    def commit_plan(self, prompt):
+        """변경 파일을 논리 단위 커밋으로 묶는다(COMMIT_SCHEMA). 읽기 전용 - 실제 git 실행은 하네스가 한다."""
+        return self._call("committer", prompt, COMMIT_SCHEMA, READ_ONLY_TOOLS)
+
+    def write_pr(self, prompt):
+        """PR 템플릿에 맞춘 제목/본문 초안을 만든다(PR_SCHEMA). 읽기 전용."""
+        return self._call("pr_writer", prompt, PR_SCHEMA, READ_ONLY_TOOLS)
 
     def _call(self, role, prompt, schema, tools, allowed=None, disallowed=None,
               attempts=2, settings=None, env_extra=None):

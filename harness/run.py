@@ -3,6 +3,7 @@
     python harness/run.py --goal-file goal.md
     python harness/run.py --resume <run-id>
     python harness/run.py "<목표>" --no-branch   # 이슈/브랜치 탐색 없이 현재 브랜치에서 실행
+    python harness/run.py "<목표>" --no-commit   # 성공해도 커밋/PR 초안을 만들지 않음
 """
 import argparse
 import sys
@@ -14,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import branching
 import guard
+import publish
 from agents import AgentError, ClaudeAgents
 from config import REPO_ROOT, RUNS_DIR, load_config
 from loop import ABORTED, SUCCESS, Harness
@@ -30,6 +32,7 @@ def main():
     ap.add_argument("--config", help="config.toml 경로")
     ap.add_argument("--max-iterations", type=int)
     ap.add_argument("--no-branch", action="store_true", help="목표에 맞는 이슈/브랜치 탐색·이동을 건너뜀")
+    ap.add_argument("--no-commit", action="store_true", help="성공 후 단위 커밋과 PR 초안 생성을 건너뜀")
     ap.add_argument("--yes", action="store_true", help="새 이슈 등록을 확인 없이 승인")
     args = ap.parse_args()
 
@@ -72,6 +75,15 @@ def main():
             state["cost_usd"] += route_cost
         print(f"run: {run_dir} (branch: {branch})")
         state = harness.run(state)
+        # 성공한 run 만 변경을 논리 단위로 커밋하고 PR 초안을 남긴다. (push / PR 등록은 하지 않는다)
+        if state["status"] == SUCCESS and not args.no_commit:
+            try:
+                state["cost_usd"] += publish.publish(cfg, agents, REPO_ROOT, run_dir, state, branch)
+            except (AgentError, publish.PublishError) as e:
+                harness.save(state)
+                sys.exit(f"커밋/PR 초안 실패: {e}
+(변경은 작업 트리에 그대로 남아 있습니다)")
+            harness.save(state)
     except (AgentError, branching.BranchError) as e:
         sys.exit(f"에이전트 오류: {e}\n(--resume 으로 이어서 실행할 수 있습니다)")
 
