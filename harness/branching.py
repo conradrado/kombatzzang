@@ -111,8 +111,10 @@ def _create_issue(repo, cfg, route, body_path, assume_yes, log):
 
 
 def _base_ref(repo, base):
-    """기준 브랜치 ref. 로컬에 없으면 origin 것을 쓴다."""
-    for ref in (base, f"origin/{base}"):
+    """기준 브랜치 ref. 로컬 브랜치가 뒤처져 있을 수 있어 origin 을 먼저 쓴다."""
+    # 오프라인 등으로 fetch 가 실패해도 로컬 ref 로 계속 진행한다
+    guard.git(repo, "fetch", "origin", base, check=False)
+    for ref in (f"origin/{base}", base):
         if guard.git(repo, "rev-parse", "--verify", "--quiet", ref, check=False).returncode == 0:
             return ref
     raise BranchError(f"기준 브랜치 {base} 를 찾을 수 없다")
