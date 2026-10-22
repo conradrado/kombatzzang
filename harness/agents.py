@@ -8,7 +8,7 @@ from pathlib import Path
 
 from config import HARNESS_DIR, PROMPTS_DIR, REPO_ROOT
 from schemas import (EVALUATION_SCHEMA, GENERATOR_SCHEMA, PLAN_SCHEMA,
-                     SchemaError, validate)
+                     ROUTE_SCHEMA, SchemaError, validate)
 
 # Planner / Evaluator 는 코드를 수정하지 않으므로 읽기 도구만 열어 준다.
 READ_ONLY_TOOLS = "Read,Grep,Glob"
@@ -42,6 +42,10 @@ class ClaudeAgents:
         self.claude = shutil.which("claude")  # claude 실행 파일 경로 탐색
         if not self.claude:
             raise AgentError("claude CLI 를 PATH 에서 찾을 수 없음")
+
+    def route(self, prompt):
+        """목표에 대응하는 기존 이슈/브랜치가 있는지 판정한다(ROUTE_SCHEMA). 읽기 전용."""
+        return self._call("router", prompt, ROUTE_SCHEMA, READ_ONLY_TOOLS)
 
     def plan(self, prompt):
         """목표를 분석해 계획(PLAN_SCHEMA)을 만든다. 읽기 전용."""

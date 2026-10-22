@@ -65,11 +65,28 @@ EVALUATION_SCHEMA = {
     },
 }
 
+ROUTE_SCHEMA = {
+    "type": "object",
+    "required": ["match", "reason"],
+    "properties": {
+        "match": {"type": "string", "enum": ["branch", "issue", "none"]},
+        "reason": {"type": "string"},
+        "branch": {"type": "string"},         # match=branch: 후보 브랜치 이름 그대로
+        "issue_number": {"type": "integer"},  # match=issue: 후보 이슈 번호
+        "slug": {"type": "string"},           # match=issue/none: 브랜치 이름용 영문 소문자-하이픈
+        "title": {"type": "string"},          # match=none: 새 이슈 제목 ([Feat] Title - Description)
+        "description": {"type": "string"},
+        "goal": {"type": "string"},
+        "tasks": {"type": "array", "items": {"type": "string"}},
+    },
+}
+
 _TYPES = {
     "object": dict,
     "array": list,
     "string": str,
     "boolean": bool,
+    "integer": int,
 }
 
 

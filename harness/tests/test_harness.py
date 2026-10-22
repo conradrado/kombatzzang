@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import branching
 import guard
 from config import load_config
 from loop import ABORTED, SUCCESS, Harness
@@ -205,6 +206,46 @@ class ScopeGuardHookTest(unittest.TestCase):
         out = subprocess.run([sys.executable, str(self.HOOK)], input=event, env=env,
                              capture_output=True, text=True, encoding="utf-8").stdout
         self.assertEqual(out, "")
+
+
+class BranchingTest(unittest.TestCase):
+    ISSUES = [{"number": 18, "title": "[Feat] 게시글 - 예외 처리"}, {"number": 77, "title": "[Feat] 랜딩"}]
+    BRANCHES = ["feature/18-post-exception", "feature/6-user-controller"]
+
+    def test_branch_match(self):
+        r = {"match": "branch", "reason": "r", "branch": "feature/18-post-exception"}
+        self.assertEqual(branching.decide(r, self.ISSUES, self.BRANCHES), ("checkout", "feature/18-post-exception"))
+
+    def test_rejects_unknown_branch_or_issue(self):
+        with self.assertRaises(branching.BranchError):
+            branching.decide({"match": "branch", "reason": "r", "branch": "feature/99-x"}, self.ISSUES, self.BRANCHES)
+        with self.assertRaises(branching.BranchError):
+            branching.decide({"match": "issue", "reason": "r", "issue_number": 99}, self.ISSUES, self.BRANCHES)
+
+    def test_issue_reuses_existing_branch_else_creates(self):
+        r = {"match": "issue", "reason": "r", "issue_number": 18, "slug": "x"}
+        self.assertEqual(branching.decide(r, self.ISSUES, self.BRANCHES), ("checkout", "feature/18-post-exception"))
+        r = {"match": "issue", "reason": "r", "issue_number": 77, "slug": "Landing Page!"}
+        self.assertEqual(branching.decide(r, self.ISSUES, self.BRANCHES),
+                         ("create_branch", 77, "feature/77-landing-page"))
+
+    def test_none_requires_title_and_tasks(self):
+        with self.assertRaises(branching.BranchError):
+            branching.decide({"match": "none", "reason": "r"}, self.ISSUES, self.BRANCHES)
+        r = {"match": "none", "reason": "r", "title": "[Feat] t", "tasks": ["a"]}
+        self.assertEqual(branching.decide(r, self.ISSUES, self.BRANCHES)[0], "create_issue")
+        self.assertIn("- [ ] a", branching.issue_body(r))
+
+    def test_checkout_creates_from_base_and_switches(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(tmp)
+            sh(repo, "git", "branch", "-M", "dev")
+            branching.checkout(repo, "feature/1-a", "dev")
+            self.assertEqual(guard.current_branch(repo), "feature/1-a")
+            sh(repo, "git", "checkout", "-q", "dev")
+            branching.checkout(repo, "feature/1-a", "dev")  # 이미 있으면 이동만
+            self.assertEqual(guard.current_branch(repo), "feature/1-a")
+            self.assertEqual(branching.list_branches(repo), ["feature/1-a"])
 
 
 class SchemaTest(unittest.TestCase):

@@ -6,12 +6,19 @@
 python harness/run.py "<목표>"              # 새 run
 python harness/run.py --goal-file goal.md
 python harness/run.py --resume <run-id>     # 중단된 run 이어서
+python harness/run.py "<목표>" --no-branch   # 이슈/브랜치 탐색 없이 현재 브랜치에서 실행
+python harness/run.py "<목표>" --yes         # 새 이슈 등록을 확인 없이 승인
 python harness/tests/test_harness.py        # 단위 테스트 (claude/gradle 불필요)
 ```
 
 종료 코드: `0` 성공 / `2` 중단(한도 초과 등) / 그 외 오류.
 
 ## 동작
+0. **Router** (새 run 만, `branching.py`): 열린 이슈와 브랜치 목록을 보고 목표와 같은 작업이 있는지 판정한다. 후보에 없는 값은 거부한다.
+   - 브랜치 있음 → `checkout` (origin 에만 있으면 추적 브랜치로 생성)
+   - 이슈만 있음 → `feature/<번호>-<slug>` 를 `base_branch`(dev) 에서 생성. 같은 번호의 브랜치가 이미 있으면 그것으로 이동
+   - 둘 다 없음 → 이슈 템플릿 양식으로 이슈 등록(확인 프롬프트, `--yes` 로 생략. 담당자는 환경변수 `HARNESS_ASSIGNEE`, 없으면 지정 안 함) 후 브랜치 생성. 비대화형이면 `--yes` 없이는 중단
+   - 이동 후에 baseline 을 찍고 보호 브랜치 검사를 한다. `--resume` 은 현재 브랜치를 그대로 쓴다.
 1. **Planner** (읽기 전용): `plan.json` — tasks, acceptance criteria, 수정 허용 경로, 테스트 필터
 2. **Generator**: 코드 수정. git 상태 변경 명령은 차단. `Edit`/`Write`/`Bash` 호출 직전에 PreToolUse 훅(`hooks/scope_guard.py`)이 허용 경로 밖 쓰기를 거부한다
 3. **가드**: 훅이 놓친 허용 경로 밖 변경을 사후에 되돌림 (`.git/ .github/ .claude/ harness/` 는 항상 금지)
