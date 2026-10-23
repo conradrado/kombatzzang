@@ -65,12 +65,17 @@ public class User extends UpdatableEntity {
     private String bio;
 
     @Builder
-    private User(String username, String email, String password, String profileImageKey, UserRole role) {
+    private User(String username, String email, String password, String profileImageKey, UserRole role,
+                 Region region, Sport sport, String weightClass, String activityRegion) {
         this.username = username;
         this.email = email;
         this.password = password;
         this.profileImageKey = profileImageKey;
         this.role = role;
+        this.region = region;
+        this.sport = sport;
+        this.weightClass = weightClass;
+        this.activityRegion = activityRegion;
     }
 
     public void updateRegion(Region region) {

@@ -41,6 +41,10 @@ public class UserService {
                 .password(passwordEncoder.encode(command.password())) // 평문으로 들어온 비밀번호를 암호화하여 유저 객체 생성
                 .profileImageKey(command.profileImageKey())
                 .role(UserRole.MEMBER) // 초기 유저 생성은 Member 권한으로 초기화
+                .region(command.region())
+                .sport(command.sport())
+                .weightClass(command.weightClass())
+                .activityRegion(command.activityRegion())
                 .build();
 
         return UserResponse.from(userRepository.save(user));
