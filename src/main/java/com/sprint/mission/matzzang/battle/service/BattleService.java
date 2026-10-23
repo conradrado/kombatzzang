@@ -5,11 +5,13 @@ import com.sprint.mission.matzzang.battle.dto.BattleCreateCommand;
 import com.sprint.mission.matzzang.battle.dto.BattleResponse;
 import com.sprint.mission.matzzang.battle.dto.BattleResultCommand;
 import com.sprint.mission.matzzang.battle.entity.Battle;
+import com.sprint.mission.matzzang.battle.event.BattleRequestedEvent;
 import com.sprint.mission.matzzang.battle.exception.BattleNotFoundException;
 import com.sprint.mission.matzzang.battle.repository.BattleRepository;
 import com.sprint.mission.matzzang.user.exception.UserNotFoundException;
 import com.sprint.mission.matzzang.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ public class BattleService {
 
     private final BattleRepository battleRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public BattleResponse createBattle(Long challengerId, BattleCreateCommand command) {
@@ -40,7 +43,10 @@ public class BattleService {
                 .status(BattleStatus.REQUESTED) // 초기 대전은 신청 상태로 생성
                 .build();
 
-        return BattleResponse.from(battleRepository.save(battle));
+        BattleResponse response = BattleResponse.from(battleRepository.save(battle));
+        // 커밋 이후 상대에게 SSE 알림을 보내기 위해 이벤트 발행
+        eventPublisher.publishEvent(new BattleRequestedEvent(command.opponentId(), response));
+        return response;
     }
 
     public BattleResponse getBattle(Long battleId) {
@@ -73,6 +79,11 @@ public class BattleService {
         Battle battle = findBattleById(battleId);
         battle.complete(command.winnerId());
         return BattleResponse.from(battle);
+    }
+
+    @Transactional
+    public void deleteBattle(Long battleId) {
+        battleRepository.delete(findBattleById(battleId));
     }
 
     private Battle findBattleById(Long battleId) {
