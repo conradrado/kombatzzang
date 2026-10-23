@@ -51,8 +51,14 @@ public class UserService {
     }
 
     public CursorPageResponse<UserResponse> getUserList(Long cursor, int size) {
-        List<User> users = userRepository.findAllByCursor(cursor, PageRequest.of(0, size + 1));
+        return toPage(userRepository.findAllByCursor(cursor, PageRequest.of(0, size + 1)), size);
+    }
 
+    public CursorPageResponse<UserResponse> getActiveUsers(String activityRegion, Long cursor, int size) {
+        return toPage(userRepository.findActiveByRegionAndCursor(activityRegion, cursor, PageRequest.of(0, size + 1)), size);
+    }
+
+    private CursorPageResponse<UserResponse> toPage(List<User> users, int size) {
         boolean hasNext = users.size() > size;
         List<User> content = hasNext ? users.subList(0, size) : users;
         Long nextCursor = hasNext ? content.get(content.size() - 1).getId() : null;
@@ -74,7 +80,8 @@ public class UserService {
             throw new DuplicateUsernameException(command.username());
         }
 
-        user.updateProfile(command.username(), command.profileImageKey());
+        user.updateProfile(command.username(), command.profileImageKey(), command.sport(), command.weightClass(),
+                command.activityRegion(), command.wins(), command.losses(), command.level(), command.bio());
         return UserResponse.from(user);
     }
 
