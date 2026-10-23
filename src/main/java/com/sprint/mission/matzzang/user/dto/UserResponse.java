@@ -1,6 +1,8 @@
 package com.sprint.mission.matzzang.user.dto;
 
 import com.sprint.mission.matzzang.user.constants.Region;
+import com.sprint.mission.matzzang.user.constants.Sport;
+import com.sprint.mission.matzzang.user.constants.UserLevel;
 import com.sprint.mission.matzzang.user.entity.User;
 import com.sprint.mission.matzzang.user.constants.UserRole;
 import java.time.Instant;
@@ -12,6 +14,13 @@ public record UserResponse(
         String profileImageKey,
         UserRole role,
         Region region,
+        Sport sport,
+        String weightClass,
+        String activityRegion,
+        int wins,
+        int losses,
+        UserLevel level,
+        String bio,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -24,6 +33,13 @@ public record UserResponse(
                 user.getProfileImageKey(),
                 user.getRole(),
                 user.getRegion(),
+                user.getSport(),
+                user.getWeightClass(),
+                user.getActivityRegion(),
+                user.getWins(),
+                user.getLosses(),
+                user.getLevel(),
+                user.getBio(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );
