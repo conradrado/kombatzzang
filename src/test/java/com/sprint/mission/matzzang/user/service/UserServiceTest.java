@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 import com.sprint.mission.matzzang.user.constants.Region;
+import com.sprint.mission.matzzang.user.constants.WeightClass;
 import com.sprint.mission.matzzang.user.constants.Sport;
 import com.sprint.mission.matzzang.user.constants.UserLevel;
 import com.sprint.mission.matzzang.user.constants.UserRole;
@@ -84,10 +85,10 @@ class UserServiceTest {
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
         UserResponse response = userService.updateUser(1L,
-                new UserUpdateCommand(null, null, Sport.BJJ, "페더급", "대전", 5, 1, UserLevel.ADVANCED, "소개"));
+                new UserUpdateCommand(null, null, Sport.BJJ, WeightClass.FEATHER, Region.DAEJEON, 5, 1, UserLevel.ADVANCED, "소개"));
 
         assertThat(response.sport()).isEqualTo(Sport.BJJ);
-        assertThat(response.activityRegion()).isEqualTo("대전");
+        assertThat(response.activityRegion()).isEqualTo(Region.DAEJEON);
         assertThat(response.wins()).isEqualTo(5);
         assertThat(response.level()).isEqualTo(UserLevel.ADVANCED);
         assertThat(user.getBio()).isEqualTo("소개");
@@ -97,9 +98,9 @@ class UserServiceTest {
     void 활동_지역으로_유저를_조회하면_다음_페이지_정보가_함께_반환된다() {
         User a = user();
         User b = user();
-        given(userRepository.findActiveByRegionAndCursor(eq("서울"), eq(null), any())).willReturn(List.of(a, b));
+        given(userRepository.findActiveByRegionAndCursor(eq(Region.SEOUL), eq(null), any())).willReturn(List.of(a, b));
 
-        CursorPageResponse<UserResponse> page = userService.getActiveUsers("서울", null, 1);
+        CursorPageResponse<UserResponse> page = userService.getActiveUsers(Region.SEOUL, null, 1);
 
         assertThat(page.content()).hasSize(1);
         assertThat(page.hasNext()).isTrue();

@@ -1,5 +1,6 @@
 package com.sprint.mission.matzzang.user.repository;
 
+import com.sprint.mission.matzzang.user.constants.Region;
 import com.sprint.mission.matzzang.user.entity.User;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +22,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u WHERE u.activityRegion = :activityRegion "
             + "AND (:cursor IS NULL OR u.id > :cursor) ORDER BY u.id ASC")
-    List<User> findActiveByRegionAndCursor(@Param("activityRegion") String activityRegion,
+    List<User> findActiveByRegionAndCursor(@Param("activityRegion") Region activityRegion,
                                            @Param("cursor") Long cursor, Pageable pageable);
 }

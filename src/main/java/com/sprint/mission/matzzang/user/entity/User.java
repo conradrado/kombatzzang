@@ -1,10 +1,7 @@
 package com.sprint.mission.matzzang.user.entity;
 
 import com.sprint.mission.matzzang.common.entity.UpdatableEntity;
-import com.sprint.mission.matzzang.user.constants.Region;
-import com.sprint.mission.matzzang.user.constants.Sport;
-import com.sprint.mission.matzzang.user.constants.UserLevel;
-import com.sprint.mission.matzzang.user.constants.UserRole;
+import com.sprint.mission.matzzang.user.constants.*;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -45,11 +42,13 @@ public class User extends UpdatableEntity {
     @Column(name = "sport", length = 30)
     private Sport sport;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "weight_class", length = 50)
-    private String weightClass;
+    private WeightClass weightClass;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "activity_region", length = 100)
-    private String activityRegion;
+    private Region activityRegion;
 
     @Column(nullable = false)
     private int wins;
@@ -66,7 +65,7 @@ public class User extends UpdatableEntity {
 
     @Builder
     private User(String username, String email, String password, String profileImageKey, UserRole role,
-                 Region region, Sport sport, String weightClass, String activityRegion) {
+                 Region region, Sport sport, WeightClass weightClass, Region activityRegion) {
         this.username = username;
         this.email = email;
         this.password = password;
@@ -86,8 +85,8 @@ public class User extends UpdatableEntity {
         updateProfile(username, profileImageKey, null, null, null, null, null, null, null);
     }
 
-    public void updateProfile(String username, String profileImageKey, Sport sport, String weightClass,
-                              String activityRegion, Integer wins, Integer losses, UserLevel level, String bio) {
+    public void updateProfile(String username, String profileImageKey, Sport sport, WeightClass weightClass,
+                              Region activityRegion, Integer wins, Integer losses, UserLevel level, String bio) {
         if (username != null) {
             this.username = username;
         }
