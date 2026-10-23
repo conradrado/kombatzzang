@@ -55,12 +55,22 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserList(cursor, size));
     }
 
+    @Operation(summary = "지역별 활동 유저 조회", description = "활동 지역이 일치하는 사용자 목록을 커서 기반으로 조회한다.")
+    @GetMapping("/active")
+    public ResponseEntity<CursorPageResponse<UserResponse>> getActiveUsers(
+            @Parameter(description = "활동 지역") @RequestParam String activityRegion,
+            @Parameter(description = "이전 페이지 마지막 사용자 ID") @RequestParam(required = false) Long cursor,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(userService.getActiveUsers(activityRegion, cursor, size));
+    }
+
     @Operation(summary = "사용자 정보 수정", description = "본인 또는 ADMIN만 수정할 수 있다.")
     @PreAuthorize("@userAccessGuard.isSelfOrAdmin(authentication, #userId)")
     @PatchMapping("/{userId}")
     public ResponseEntity<UserResponse> updateUser(
             @Parameter(description = "사용자 ID") @PathVariable Long userId,
-            @RequestBody UserUpdateCommand command
+            @Valid @RequestBody UserUpdateCommand command
     ) {
         return ResponseEntity.ok(userService.updateUser(userId, command));
     }

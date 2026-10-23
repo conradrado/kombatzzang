@@ -18,4 +18,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u WHERE :cursor IS NULL OR u.id > :cursor ORDER BY u.id ASC")
     List<User> findAllByCursor(@Param("cursor") Long cursor, Pageable pageable);
+
+    @Query("SELECT u FROM User u WHERE u.activityRegion = :activityRegion "
+            + "AND (:cursor IS NULL OR u.id > :cursor) ORDER BY u.id ASC")
+    List<User> findActiveByRegionAndCursor(@Param("activityRegion") String activityRegion,
+                                           @Param("cursor") Long cursor, Pageable pageable);
 }
