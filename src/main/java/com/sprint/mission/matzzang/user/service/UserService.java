@@ -45,10 +45,10 @@ public class UserService {
                 .password(passwordEncoder.encode(command.password())) // 평문으로 들어온 비밀번호를 암호화하여 유저 객체 생성
                 .profileImageKey(command.profileImageKey())
                 .role(UserRole.MEMBER) // 초기 유저 생성은 Member 권한으로 초기화
-                .region(Region.UNKNOWN)
-                .sport(Sport.UNKNOWN)
-                .weightClass(WeightClass.UNKNOWN)
-                .activityRegion(Region.UNKNOWN)
+                .region(command.region() != null ? command.region() : Region.UNKNOWN)
+                .sport(command.sport() != null ? command.sport() : Sport.UNKNOWN)
+                .weightClass(parseEnum(WeightClass.class, command.weightClass(), WeightClass.UNKNOWN))
+                .activityRegion(parseEnum(Region.class, command.activityRegion(), Region.UNKNOWN))
                 .build();
 
         return UserResponse.from(userRepository.save(user));
@@ -110,6 +110,17 @@ public class UserService {
     @Transactional
     public void deleteUser(Long userId) {
         userRepository.delete(findUserById(userId));
+    }
+
+    private <E extends Enum<E>> E parseEnum(Class<E> type, String value, E defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            return Enum.valueOf(type, value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return defaultValue;
+        }
     }
 
     private User findUserById(Long userId) {
