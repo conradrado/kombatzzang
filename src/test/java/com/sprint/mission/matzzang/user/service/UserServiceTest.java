@@ -14,6 +14,7 @@ import com.sprint.mission.matzzang.user.constants.UserRole;
 import com.sprint.mission.matzzang.common.dto.CursorPageResponse;
 import com.sprint.mission.matzzang.user.dto.UserUpdateCommand;
 import java.util.List;
+import com.sprint.mission.matzzang.user.dto.UserRecordUpdateCommand;
 import com.sprint.mission.matzzang.user.dto.UserRegionUpdateCommand;
 import com.sprint.mission.matzzang.user.dto.UserResponse;
 import com.sprint.mission.matzzang.user.entity.User;
@@ -85,13 +86,32 @@ class UserServiceTest {
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
         UserResponse response = userService.updateUser(1L,
-                new UserUpdateCommand(null, null, Sport.BJJ, WeightClass.FEATHER, Region.DAEJEON, 5, 1, UserLevel.ADVANCED, "소개"));
+                new UserUpdateCommand(null, null, Sport.BJJ, WeightClass.FEATHER, Region.DAEJEON, "소개"));
 
         assertThat(response.sport()).isEqualTo(Sport.BJJ);
         assertThat(response.activityRegion()).isEqualTo(Region.DAEJEON);
-        assertThat(response.wins()).isEqualTo(5);
-        assertThat(response.level()).isEqualTo(UserLevel.ADVANCED);
         assertThat(user.getBio()).isEqualTo("소개");
+    }
+
+    @Test
+    void 전적과_레벨을_수정하면_응답과_엔티티에_반영된다() {
+        User user = user();
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+        UserResponse response = userService.updateRecord(1L, new UserRecordUpdateCommand(5, 1, UserLevel.ADVANCED));
+
+        assertThat(response.wins()).isEqualTo(5);
+        assertThat(response.losses()).isEqualTo(1);
+        assertThat(response.level()).isEqualTo(UserLevel.ADVANCED);
+        assertThat(user.getWins()).isEqualTo(5);
+    }
+
+    @Test
+    void 없는_유저의_전적을_수정하면_UserNotFoundException이_발생한다() {
+        given(userRepository.findById(99L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.updateRecord(99L, new UserRecordUpdateCommand(1, 0, null)))
+                .isInstanceOf(UserNotFoundException.class);
     }
 
     @Test

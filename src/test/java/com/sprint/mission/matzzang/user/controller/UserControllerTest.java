@@ -57,17 +57,27 @@ class UserControllerTest {
 
         mockMvc.perform(patch("/api/users/1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"sport\":\"BOXING\",\"activityRegion\":\"SEOUL\",\"wins\":3,\"level\":\"AMATEUR\"}"))
+                        .content("{\"sport\":\"BOXING\",\"activityRegion\":\"SEOUL\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sport").value("BOXING"))
-                .andExpect(jsonPath("$.activityRegion").value("SEOUL"))
+                .andExpect(jsonPath("$.activityRegion").value("SEOUL"));
+    }
+
+    @Test
+    void 전적과_레벨을_담아_수정하면_200과_값이_반환된다() throws Exception {
+        given(userService.updateRecord(eq(1L), any())).willReturn(response());
+
+        mockMvc.perform(patch("/api/users/1/record")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"wins\":3,\"losses\":1,\"level\":\"AMATEUR\"}"))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.wins").value(3))
                 .andExpect(jsonPath("$.level").value("AMATEUR"));
     }
 
     @Test
     void 전적이_음수면_400이_반환된다() throws Exception {
-        mockMvc.perform(patch("/api/users/1")
+        mockMvc.perform(patch("/api/users/1/record")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"wins\":-1}"))
                 .andExpect(status().isBadRequest());

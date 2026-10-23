@@ -6,6 +6,7 @@ import com.sprint.mission.matzzang.user.constants.Sport;
 import com.sprint.mission.matzzang.user.constants.UserRole;
 import com.sprint.mission.matzzang.user.constants.WeightClass;
 import com.sprint.mission.matzzang.user.dto.UserCreateCommand;
+import com.sprint.mission.matzzang.user.dto.UserRecordUpdateCommand;
 import com.sprint.mission.matzzang.user.dto.UserRegionUpdateCommand;
 import com.sprint.mission.matzzang.user.dto.UserResponse;
 import com.sprint.mission.matzzang.user.dto.UserUpdateCommand;
@@ -88,7 +89,14 @@ public class UserService {
         }
 
         user.updateProfile(command.username(), command.profileImageKey(), command.sport(), command.weightClass(),
-                command.activityRegion(), command.wins(), command.losses(), command.level(), command.bio());
+                command.activityRegion(), command.bio());
+        return UserResponse.from(user);
+    }
+
+    @Transactional
+    public UserResponse updateRecord(Long userId, UserRecordUpdateCommand command) {
+        User user = findUserById(userId);
+        user.updateRecord(command.wins(), command.losses(), command.level());
         return UserResponse.from(user);
     }
 

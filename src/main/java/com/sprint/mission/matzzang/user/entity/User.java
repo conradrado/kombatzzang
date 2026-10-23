@@ -82,11 +82,11 @@ public class User extends UpdatableEntity {
     }
 
     public void updateProfile(String username, String profileImageKey) {
-        updateProfile(username, profileImageKey, null, null, null, null, null, null, null);
+        updateProfile(username, profileImageKey, null, null, null, null);
     }
 
     public void updateProfile(String username, String profileImageKey, Sport sport, WeightClass weightClass,
-                              Region activityRegion, Integer wins, Integer losses, UserLevel level, String bio) {
+                              Region activityRegion, String bio) {
         if (username != null) {
             this.username = username;
         }
@@ -102,6 +102,12 @@ public class User extends UpdatableEntity {
         if (activityRegion != null) {
             this.activityRegion = activityRegion;
         }
+        if (bio != null) {
+            this.bio = bio;
+        }
+    }
+
+    public void updateRecord(Integer wins, Integer losses, UserLevel level) {
         if (wins != null) {
             this.wins = wins;
         }
@@ -110,9 +116,6 @@ public class User extends UpdatableEntity {
         }
         if (level != null) {
             this.level = level;
-        }
-        if (bio != null) {
-            this.bio = bio;
         }
     }
 }
