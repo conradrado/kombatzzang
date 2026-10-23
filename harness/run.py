@@ -81,8 +81,7 @@ def main():
                 state["cost_usd"] += publish.publish(cfg, agents, REPO_ROOT, run_dir, state, branch)
             except (AgentError, publish.PublishError) as e:
                 harness.save(state)
-                sys.exit(f"커밋/PR 초안 실패: {e}
-(변경은 작업 트리에 그대로 남아 있습니다)")
+                sys.exit(f"커밋/PR 초안 실패: {e} (변경은 작업 트리에 그대로 남아 있습니다)")
             harness.save(state)
     except (AgentError, branching.BranchError) as e:
         sys.exit(f"에이전트 오류: {e}\n(--resume 으로 이어서 실행할 수 있습니다)")

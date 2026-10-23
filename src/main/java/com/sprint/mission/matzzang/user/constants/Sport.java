@@ -6,5 +6,6 @@ public enum Sport {
     MUAY_THAI,
     BJJ,
     KICKBOXING,
-    WRESTLING
+    WRESTLING,
+    UNKNOWN
 }

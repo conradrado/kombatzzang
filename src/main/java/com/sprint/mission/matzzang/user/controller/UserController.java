@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import com.sprint.mission.matzzang.user.constants.Region;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -58,7 +59,7 @@ public class UserController {
     @Operation(summary = "지역별 활동 유저 조회", description = "활동 지역이 일치하는 사용자 목록을 커서 기반으로 조회한다.")
     @GetMapping("/active")
     public ResponseEntity<CursorPageResponse<UserResponse>> getActiveUsers(
-            @Parameter(description = "활동 지역") @RequestParam String activityRegion,
+            @Parameter(description = "활동 지역") @RequestParam Region activityRegion,
             @Parameter(description = "이전 페이지 마지막 사용자 ID") @RequestParam(required = false) Long cursor,
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") int size
     ) {

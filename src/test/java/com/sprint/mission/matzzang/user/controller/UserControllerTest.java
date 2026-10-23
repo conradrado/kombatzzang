@@ -11,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.sprint.mission.matzzang.common.dto.CursorPageResponse;
 import com.sprint.mission.matzzang.common.exception.GlobalExceptionHandler;
 import com.sprint.mission.matzzang.user.constants.Sport;
+import com.sprint.mission.matzzang.user.constants.WeightClass;
+import com.sprint.mission.matzzang.user.constants.Region;
 import com.sprint.mission.matzzang.user.constants.UserLevel;
 import com.sprint.mission.matzzang.user.constants.UserRole;
 import com.sprint.mission.matzzang.user.dto.UserResponse;
@@ -46,7 +48,7 @@ class UserControllerTest {
 
     private UserResponse response() {
         return new UserResponse(1L, "fighter", "f@test.com", null, UserRole.MEMBER, null,
-                Sport.BOXING, "라이트급", "서울", 3, 1, UserLevel.AMATEUR, "안녕", null, null);
+                Sport.BOXING, WeightClass.LIGHT, Region.SEOUL, 3, 1, UserLevel.AMATEUR, "안녕", null, null);
     }
 
     @Test
@@ -55,10 +57,10 @@ class UserControllerTest {
 
         mockMvc.perform(patch("/api/users/1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"sport\":\"BOXING\",\"activityRegion\":\"서울\",\"wins\":3,\"level\":\"AMATEUR\"}"))
+                        .content("{\"sport\":\"BOXING\",\"activityRegion\":\"SEOUL\",\"wins\":3,\"level\":\"AMATEUR\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sport").value("BOXING"))
-                .andExpect(jsonPath("$.activityRegion").value("서울"))
+                .andExpect(jsonPath("$.activityRegion").value("SEOUL"))
                 .andExpect(jsonPath("$.wins").value(3))
                 .andExpect(jsonPath("$.level").value("AMATEUR"));
     }
@@ -81,12 +83,12 @@ class UserControllerTest {
 
     @Test
     void 활동_지역으로_조회하면_200과_커서_페이지가_반환된다() throws Exception {
-        given(userService.getActiveUsers("서울", null, 20))
+        given(userService.getActiveUsers(Region.SEOUL, null, 20))
                 .willReturn(CursorPageResponse.of(List.of(response()), 1L, true));
 
-        mockMvc.perform(get("/api/users/active").param("activityRegion", "서울"))
+        mockMvc.perform(get("/api/users/active").param("activityRegion", "SEOUL"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].activityRegion").value("서울"))
+                .andExpect(jsonPath("$.content[0].activityRegion").value("SEOUL"))
                 .andExpect(jsonPath("$.nextCursor").value(1))
                 .andExpect(jsonPath("$.hasNext").value(true));
     }

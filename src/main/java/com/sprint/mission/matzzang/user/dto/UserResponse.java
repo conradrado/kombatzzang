@@ -3,6 +3,7 @@ package com.sprint.mission.matzzang.user.dto;
 import com.sprint.mission.matzzang.user.constants.Region;
 import com.sprint.mission.matzzang.user.constants.Sport;
 import com.sprint.mission.matzzang.user.constants.UserLevel;
+import com.sprint.mission.matzzang.user.constants.WeightClass;
 import com.sprint.mission.matzzang.user.entity.User;
 import com.sprint.mission.matzzang.user.constants.UserRole;
 import java.time.Instant;
@@ -15,8 +16,8 @@ public record UserResponse(
         UserRole role,
         Region region,
         Sport sport,
-        String weightClass,
-        String activityRegion,
+        WeightClass weightClass,
+        Region activityRegion,
         int wins,
         int losses,
         UserLevel level,

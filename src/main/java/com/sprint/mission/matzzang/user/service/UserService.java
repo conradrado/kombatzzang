@@ -1,7 +1,10 @@
 package com.sprint.mission.matzzang.user.service;
 
 import com.sprint.mission.matzzang.common.dto.CursorPageResponse;
+import com.sprint.mission.matzzang.user.constants.Region;
+import com.sprint.mission.matzzang.user.constants.Sport;
 import com.sprint.mission.matzzang.user.constants.UserRole;
+import com.sprint.mission.matzzang.user.constants.WeightClass;
 import com.sprint.mission.matzzang.user.dto.UserCreateCommand;
 import com.sprint.mission.matzzang.user.dto.UserRegionUpdateCommand;
 import com.sprint.mission.matzzang.user.dto.UserResponse;
@@ -41,6 +44,10 @@ public class UserService {
                 .password(passwordEncoder.encode(command.password())) // 평문으로 들어온 비밀번호를 암호화하여 유저 객체 생성
                 .profileImageKey(command.profileImageKey())
                 .role(UserRole.MEMBER) // 초기 유저 생성은 Member 권한으로 초기화
+                .region(Region.UNKNOWN)
+                .sport(Sport.UNKNOWN)
+                .weightClass(WeightClass.UNKNOWN)
+                .activityRegion(Region.UNKNOWN)
                 .build();
 
         return UserResponse.from(userRepository.save(user));
@@ -54,7 +61,7 @@ public class UserService {
         return toPage(userRepository.findAllByCursor(cursor, PageRequest.of(0, size + 1)), size);
     }
 
-    public CursorPageResponse<UserResponse> getActiveUsers(String activityRegion, Long cursor, int size) {
+    public CursorPageResponse<UserResponse> getActiveUsers(Region activityRegion, Long cursor, int size) {
         return toPage(userRepository.findActiveByRegionAndCursor(activityRegion, cursor, PageRequest.of(0, size + 1)), size);
     }
 

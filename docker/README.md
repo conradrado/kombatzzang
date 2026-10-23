@@ -7,7 +7,7 @@ Kafka, Redis 는 아직 포함되어 있지 않으며, 필요해지는 시점에
 
 | 서비스 | 설명 | 이미지 | 포트 |
 |---|---|---|---|
-| `postgres` | 애플리케이션 DB | `docker/postgres/Dockerfile` (postgres:16-alpine 기반, 초기 스키마/시드 포함) | `5432` |
+| `postgres` | 애플리케이션 DB | `docker/postgres/Dockerfile` (postgres:16-alpine 기반) | `5432` |
 | `app` | Spring Boot 애플리케이션 | `docker/app/Dockerfile` (멀티스테이지: gradle 빌드 → JRE 실행) | `8080` |
 
 두 서비스는 `matzzang-net` 브리지 네트워크로 묶여 있고, `app` 은 `postgres` 가
@@ -17,10 +17,7 @@ healthy 상태가 될 때까지 기다렸다가 기동한다(`depends_on.conditi
 docker-compose.yml
 docker/
 ├── postgres/
-│   ├── Dockerfile          # postgres:16-alpine + 초기화 스크립트
-│   └── init/
-│       ├── 01_schema.sql   # 테이블/타입 생성 (컨테이너 최초 기동 시 1회 실행)
-│       └── 02_seed.sql     # 샘플 데이터
+│   └── Dockerfile          # postgres:16-alpine
 └── app/
     └── Dockerfile          # Spring Boot 앱 빌드/실행 이미지
 ```
@@ -91,25 +88,24 @@ docker compose down -v       # DB 볼륨까지 완전히 삭제하고 싶을 때
 
 ## DB 스키마 관리
 
-현재는 Flyway/Liquibase 같은 마이그레이션 도구를 쓰지 않고,
-`docker/postgres/init/*.sql` 스크립트가 컨테이너 최초 기동 시 한 번 실행되는
-방식으로 스키마를 관리한다 (postgres 공식 이미지의 `docker-entrypoint-initdb.d`
-동작). 그래서 애플리케이션의 `spring.jpa.hibernate.ddl-auto` 는 `none` 으로
-설정되어 있다 — Hibernate가 테이블을 만들거나 검증하지 않는다.
+스키마는 Flyway 마이그레이션(`src/main/resources/schema/V*__*.sql`)으로 관리하며,
+앱이 기동할 때 자동으로 적용된다. 그래서 `spring.jpa.hibernate.ddl-auto` 는 `none` 이다.
+`postgres` 컨테이너는 빈 DB만 제공하고 테이블은 만들지 않는다.
 
 스키마를 바꿔야 하면:
-1. `docker/postgres/init/01_schema.sql` (필요 시 `02_seed.sql`) 수정
-2. 볼륨을 초기화해야 반영된다 — init 스크립트는 **빈 데이터 디렉터리일 때만** 실행됨
+1. 새 버전 번호의 마이그레이션 파일을 추가한다 (기존 파일은 수정하지 않는다)
+2. 앱 이미지를 다시 빌드한다 — SQL 파일이 jar 안에 포함되기 때문
 
 ```bash
-docker compose down -v   # postgres_data 볼륨 삭제
-docker compose up -d --build
+docker compose up -d --build app
 ```
 
-> **알려진 이슈**: `users` 등 엔티티는 `UpdatableEntity`(`created_at`, `updated_at`)를
-> 상속하지만, 현재 `01_schema.sql` 에는 `users.updated_at` 컬럼이 없다. 조회는
-> 문제없이 동작하지만(확인 완료), 엔티티를 실제로 `save()`/수정하면 컬럼 불일치로
-> 오류가 날 수 있다. 스키마 스크립트에 `updated_at` 컬럼 추가가 필요하다.
+마이그레이션 이력이 꼬였거나 DB를 처음부터 다시 만들고 싶으면 볼륨을 지운다.
+
+```bash
+docker compose down -v   # postgres_data 볼륨 삭제 (DB 데이터 삭제)
+docker compose up -d --build
+```
 
 ## 향후 계획: Kafka / Redis
 
@@ -131,7 +127,6 @@ docker compose up -d --build
 - `docker compose build` — `postgres`, `app` 이미지 모두 정상 빌드
 - `docker compose up -d` — `postgres` healthy 이후 `app` 정상 기동, 로그에서
   HikariCP가 `postgres:5432` 에 연결 성공한 것 확인
-- `GET /api/users` → `200 OK`, `02_seed.sql` 로 넣은 4명의 사용자 데이터 반환 확인
 - `docker compose down` 후 `docker compose up` 재기동 시 `postgres_data` 볼륨에
   데이터가 유지되는 것 확인
 - 기본(`SPRING_PROFILES_ACTIVE=local`)으로 기동 시 로그에 `The following 1
