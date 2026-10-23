@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -77,5 +78,14 @@ public class BattleController {
             @Valid @RequestBody BattleResultCommand command
     ) {
         return ResponseEntity.ok(battleService.recordResult(battleId, command));
+    }
+
+    @Operation(summary = "대전 전적 삭제", description = "ADMIN만 삭제할 수 있다.")
+    @ApiResponse(responseCode = "204", description = "삭제됨")
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{battleId}")
+    public ResponseEntity<Void> deleteBattle(@Parameter(description = "대전 ID") @PathVariable Long battleId) {
+        battleService.deleteBattle(battleId);
+        return ResponseEntity.noContent().build();
     }
 }
