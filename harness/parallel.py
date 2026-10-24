@@ -4,6 +4,7 @@
     python harness/parallel.py 93 92            # 지정한 이슈 병렬 실행
     python harness/parallel.py --auto 2         # 브랜치/담당자 없는 열린 이슈 중 최신순 2개 자동 선택
     python harness/parallel.py 93 92 --no-push  # 커밋까지만
+    python harness/parallel.py 93 92 --no-pr    # push 까지만
     python harness/parallel.py 93 --cleanup     # push 성공한 worktree 는 삭제
 
 이슈마다 `<저장소>-wt-<번호>` worktree 와 `feature/<번호>-<slug>` 브랜치를 만들고, 그 안에서 `run.py` 를 실행한다.
@@ -88,6 +89,31 @@ def ahead_count(path, base_ref):
     return int(guard.git(path, "rev-list", "--count", f"{base_ref}..HEAD").stdout.strip() or 0)
 
 
+def latest_draft(path):
+    """worktree 안 가장 최근 run 의 PR 초안 (제목 파일, 본문 파일). 없으면 None."""
+    titles = sorted(Path(path).glob("harness/runs/*/pr-title.txt"), key=lambda f: f.stat().st_mtime)
+    if titles and (titles[-1].parent / "pr-body.md").is_file():
+        return titles[-1], titles[-1].parent / "pr-body.md"
+    return None
+
+
+def open_pr(cfg, path, branch, base):
+    """PR 초안으로 PR 을 등록하고 URL 을 반환한다. 이미 열린 PR 이 있으면 그 URL 을 반환한다."""
+    existing = _gh_json(path, "pr", "list", "--head", branch, "--state", "open", "--json", "url")
+    if existing:
+        return existing[0]["url"]
+    draft = latest_draft(path)
+    if not draft:
+        raise ParallelError("PR 초안(pr-title.txt, pr-body.md)을 찾을 수 없다")
+    title, body = draft
+    args = ["pr", "create", "--base", base, "--head", branch,
+            "--title", title.read_text(encoding="utf-8").strip(), "--body-file", str(body)]
+    assignee = os.environ.get(cfg["git"].get("assignee_env", ""))
+    if assignee:
+        args += ["--assignee", assignee]
+    return branching._gh(path, *args).strip().splitlines()[-1]
+
+
 def run_issue(cfg, issue, args, log_dir, base_ref):
     """이슈 하나를 처리하고 결과 dict 를 돌려준다. 예외는 결과에 담아 다른 이슈에 영향을 주지 않는다."""
     number = issue["number"]
@@ -120,8 +146,10 @@ def run_issue(cfg, issue, args, log_dir, base_ref):
             return result
         guard.git(path, "push", "-u", "origin", branch)
         result.update(status="PUSHED")
+        if not args.no_pr:
+            result.update(status="PR_CREATED", detail=open_pr(cfg, path, branch, cfg["git"].get("base_branch", "dev")))
     except (ParallelError, branching.BranchError, RuntimeError) as e:
-        result["detail"] = str(e)
+        result["detail"] = str(e)  # push 성공 후 PR 등록만 실패하면 status 는 PUSHED 로 남는다
     return result
 
 
@@ -141,6 +169,7 @@ def main():
     ap.add_argument("--slug", action="append", default=[], metavar="번호=slug", help="브랜치 슬러그 직접 지정")
     ap.add_argument("--max-iterations", type=int)
     ap.add_argument("--no-push", action="store_true", help="커밋까지만 하고 push 하지 않음")
+    ap.add_argument("--no-pr", action="store_true", help="push 까지만 하고 PR 은 등록하지 않음")
     ap.add_argument("--cleanup", action="store_true", help="push 성공한 worktree 를 삭제")
     ap.add_argument("--yes", action="store_true", help="자동 선택 확인 생략")
     args = ap.parse_args()
@@ -181,17 +210,17 @@ def main():
                 shutil.copy(f, log_dir / f"issue-{r['issue']}-{f.name}")
     if args.cleanup:
         for r in results:
-            if r["status"] == "PUSHED":
+            if r["status"] in ("PUSHED", "PR_CREATED"):
                 guard.git(REPO_ROOT, "worktree", "remove", "--force", r["path"], check=False)
                 shutil.rmtree(r["path"], ignore_errors=True)
     print("\n" + summarize(results))
     for r in results:
         draft = f"{log_dir}/issue-{r['issue']}-pr-body.md"
         if r["status"] == "PUSHED":
-            print(f"PR: gh pr create --base {base} --head {r['branch']}  (초안: {draft})")
+            print(f"PR 등록 필요: gh pr create --base {base} --head {r['branch']}  (초안: {draft})")
         elif r["status"] == "COMMITTED":
             print(f"push: git -C {r['path']} push -u origin {r['branch']}  (PR 초안: {draft})")
-    sys.exit(0 if all(r["status"] in ("PUSHED", "COMMITTED") for r in results) else 1)
+    sys.exit(0 if all(r["status"] in ("PR_CREATED", "PUSHED", "COMMITTED") for r in results) else 1)
 
 
 if __name__ == "__main__":
