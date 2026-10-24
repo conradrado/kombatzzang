@@ -89,7 +89,10 @@ def _confirm(message, assume_yes):
         return True
     if not sys.stdin.isatty():
         return False
-    return input(f"{message} [y/N] ").strip().lower() in ("y", "yes")
+    try:
+        return input(f"{message} [y/N] ").strip().lower() in ("y", "yes")
+    except EOFError:  # 입력이 닫힌 환경(에이전트 도구 등)은 미승인으로 본다
+        return False
 
 
 def _create_issue(repo, cfg, route, body_path, assume_yes, log):
