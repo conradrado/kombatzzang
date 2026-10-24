@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import branching
 import guard
+import parallel
 import publish
 from config import load_config
 from loop import ABORTED, SUCCESS, Harness
@@ -311,6 +312,42 @@ class PublishTest(unittest.TestCase):
             log = guard.git(repo, "log", "--format=%s", "-3").stdout.splitlines()
             self.assertEqual(log[:2], ["Test: b (#7)", "Feat: a (#7)"])
             self.assertEqual(guard.git(repo, "diff", "--cached", "--name-only").stdout.split(), ["other.txt"])
+
+
+class ParallelTest(unittest.TestCase):
+    def test_worktree_path_is_sibling(self):
+        p = parallel.worktree_path("/a/b/kombatzzang", 93)
+        self.assertEqual(p.name, "kombatzzang-wt-93")
+        self.assertEqual(p.parent.name, "b")
+
+    def test_pick_issues_skips_branched_and_assigned_newest_first(self):
+        issues = [{"number": 95, "title": "a", "assignees": []}, {"number": 93, "title": "b", "assignees": []},
+                  {"number": 92, "title": "c", "assignees": [{"login": "x"}]}, {"number": 48, "title": "d", "assignees": []}]
+        orig = parallel._gh_json
+        parallel._gh_json = lambda *a, **k: issues
+        try:
+            picked = parallel.pick_issues(".", 2, ["feature/95-user-admin"])
+        finally:
+            parallel._gh_json = orig
+        self.assertEqual([i["number"] for i in picked], [93, 48])
+
+    def test_add_worktree_creates_branch_and_reuses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "repo").mkdir()
+            repo = make_repo(Path(tmp) / "repo")
+            sh(repo, "git", "branch", "dev")
+            path, branch = parallel.add_worktree(repo, 7, "some-work", "dev")
+            self.assertEqual(branch, "feature/7-some-work")
+            self.assertTrue(path.is_dir())
+            self.assertEqual(parallel.ahead_count(path, "dev"), 0)
+            self.assertEqual(parallel.add_worktree(repo, 7, "other", "dev"), (path, branch))
+            sh(repo, "git", "worktree", "remove", "--force", str(path))
+
+    def test_summarize_lists_every_issue(self):
+        out = parallel.summarize([{"issue": 1, "status": "PUSHED", "branch": "feature/1-a", "detail": ""},
+                                  {"issue": 2, "status": "FAILED", "branch": None, "detail": "x"}])
+        self.assertIn("#1", out)
+        self.assertIn("FAILED", out)
 
 
 class SchemaTest(unittest.TestCase):

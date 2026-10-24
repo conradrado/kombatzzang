@@ -14,6 +14,15 @@ python harness/tests/test_harness.py        # 단위 테스트 (claude/gradle �
 
 종료 코드: `0` 성공 / `2` 중단(한도 초과 등) / 그 외 오류.
 
+## 병렬 실행 (`parallel.py`)
+```
+python harness/parallel.py 93 92            # 지정한 이슈를 worktree 로 나눠 병렬 구현
+python harness/parallel.py --auto 2         # 브랜치/담당자 없는 열린 이슈 중 최신순 2개 선택(확인 프롬프트)
+python harness/parallel.py 93 92 --no-push  # 커밋까지만
+python harness/parallel.py 93 --cleanup     # push 성공한 worktree 삭제
+```
+이슈마다 `<저장소>-wt-<번호>` worktree 와 `feature/<번호>-<slug>` 브랜치(`origin/dev` 기준)를 만들고 그 안에서 `run.py --no-branch` 를 돌린다. 종료 코드 0(테스트 green + Evaluator PASS + 커밋 완료)이고 dev 보다 앞선 커밋이 있는 브랜치만 **오케스트레이터가** `git push -u origin` 한다. 에이전트의 push/gh 금지는 그대로다. PR 은 등록하지 않고 초안을 `runs/parallel-*/issue-N-pr-*` 로 모은다. `--workers`(기본 3)만큼 동시에 돌고, 비용 상한은 이슈 수 × `max_total_cost_usd` 다. `.env` 같은 gitignore 파일은 worktree 로 복사되지 않는다.
+
 ## 동작
 0. **Router** (새 run 만, `branching.py`): 열린 이슈와 브랜치 목록을 보고 목표와 같은 작업이 있는지 판정한다. 후보에 없는 값은 거부한다.
    - 브랜치 있음 → `checkout` (origin 에만 있으면 추적 브랜치로 생성)
