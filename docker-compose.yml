@@ -34,6 +34,9 @@ services:
       DB_NAME: ${DB_NAME:-matzzang}
       DB_USERNAME: ${DB_USERNAME:-matzzang}
       DB_PASSWORD: ${DB_PASSWORD:-matzzang}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     ports:
       - "${APP_PORT:-8080}:8080"
     networks:
