@@ -12,6 +12,7 @@ import com.sprint.mission.matzzang.battle.dto.BattleCreateCommand;
 import com.sprint.mission.matzzang.battle.dto.BattleResponse;
 import com.sprint.mission.matzzang.battle.dto.BattleResultCommand;
 import com.sprint.mission.matzzang.battle.entity.Battle;
+import com.sprint.mission.matzzang.battle.event.BattleRequestedEvent;
 import com.sprint.mission.matzzang.battle.exception.BattleNotFoundException;
 import com.sprint.mission.matzzang.battle.repository.BattleRepository;
 import com.sprint.mission.matzzang.user.constants.Sport;
@@ -25,6 +26,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class BattleServiceTest {
@@ -34,6 +36,9 @@ class BattleServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private BattleService battleService;
@@ -70,12 +75,27 @@ class BattleServiceTest {
     }
 
     @Test
+    void 대전을_신청하면_BattleRequestedEvent가_발행된다() {
+        given(userRepository.existsById(2L)).willReturn(true);
+        given(battleRepository.save(any(Battle.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        BattleResponse response = battleService.createBattle(1L,
+                new BattleCreateCommand(2L, Sport.BOXING, null, null, null));
+
+        ArgumentCaptor<BattleRequestedEvent> captor = ArgumentCaptor.forClass(BattleRequestedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().opponentId()).isEqualTo(2L);
+        assertThat(captor.getValue().battle()).isEqualTo(response);
+    }
+
+    @Test
     void 자기_자신에게_신청하면_예외가_발생한다() {
         assertThatThrownBy(() -> battleService.createBattle(1L,
                 new BattleCreateCommand(1L, Sport.BOXING, null, null, null)))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(battleRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test
@@ -87,6 +107,7 @@ class BattleServiceTest {
                 .isInstanceOf(UserNotFoundException.class);
 
         verify(battleRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test
@@ -200,5 +221,24 @@ class BattleServiceTest {
 
         assertThatThrownBy(() -> battleService.recordResult(1L, new BattleResultCommand(2L)))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void 대전을_삭제하면_repository의_delete가_호출된다() {
+        Battle battle = battle(BattleStatus.COMPLETED);
+        given(battleRepository.findById(1L)).willReturn(Optional.of(battle));
+
+        battleService.deleteBattle(1L);
+
+        verify(battleRepository).delete(battle);
+    }
+
+    @Test
+    void 없는_대전을_삭제하면_BattleNotFoundException이_발생한다() {
+        given(battleRepository.findById(1L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> battleService.deleteBattle(1L))
+                .isInstanceOf(BattleNotFoundException.class);
+        verify(battleRepository, never()).delete(any(Battle.class));
     }
 }

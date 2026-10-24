@@ -33,33 +33,50 @@ class UserTest {
     void updateProfile에_새_값을_주면_반영된다() {
         User user = user();
 
-        user.updateProfile("new", "key", Sport.BOXING, WeightClass.LIGHT, Region.SEOUL, 3, 1, UserLevel.AMATEUR, "안녕");
+        user.updateProfile("new", "key", Sport.BOXING, WeightClass.LIGHT, Region.SEOUL, "안녕");
 
         assertThat(user.getUsername()).isEqualTo("new");
         assertThat(user.getProfileImageKey()).isEqualTo("key");
         assertThat(user.getSport()).isEqualTo(Sport.BOXING);
         assertThat(user.getWeightClass()).isEqualTo(WeightClass.LIGHT);
         assertThat(user.getActivityRegion()).isEqualTo(Region.SEOUL);
-        assertThat(user.getWins()).isEqualTo(3);
-        assertThat(user.getLosses()).isEqualTo(1);
-        assertThat(user.getLevel()).isEqualTo(UserLevel.AMATEUR);
         assertThat(user.getBio()).isEqualTo("안녕");
     }
 
     @Test
     void updateProfile에_null을_주면_기존_값이_유지된다() {
         User user = user();
-        user.updateProfile("new", "key", Sport.MMA, WeightClass.WELTER, Region.BUSAN, 2, 2, UserLevel.PRO, "bio");
+        user.updateProfile("new", "key", Sport.MMA, WeightClass.WELTER, Region.BUSAN, "bio");
 
-        user.updateProfile(null, null, null, null, null, null, null, null, null);
+        user.updateProfile(null, null, null, null, null, null);
 
         assertThat(user.getUsername()).isEqualTo("new");
         assertThat(user.getSport()).isEqualTo(Sport.MMA);
         assertThat(user.getWeightClass()).isEqualTo(WeightClass.WELTER);
         assertThat(user.getActivityRegion()).isEqualTo(Region.BUSAN);
+        assertThat(user.getBio()).isEqualTo("bio");
+    }
+
+    @Test
+    void updateRecord에_새_값을_주면_반영된다() {
+        User user = user();
+
+        user.updateRecord(3, 1, UserLevel.AMATEUR);
+
+        assertThat(user.getWins()).isEqualTo(3);
+        assertThat(user.getLosses()).isEqualTo(1);
+        assertThat(user.getLevel()).isEqualTo(UserLevel.AMATEUR);
+    }
+
+    @Test
+    void updateRecord에_null을_주면_기존_값이_유지된다() {
+        User user = user();
+        user.updateRecord(2, 2, UserLevel.PRO);
+
+        user.updateRecord(null, null, null);
+
         assertThat(user.getWins()).isEqualTo(2);
         assertThat(user.getLosses()).isEqualTo(2);
         assertThat(user.getLevel()).isEqualTo(UserLevel.PRO);
-        assertThat(user.getBio()).isEqualTo("bio");
     }
 }

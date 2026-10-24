@@ -3,6 +3,8 @@ package com.sprint.mission.matzzang.battle.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -80,6 +82,14 @@ class BattleControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"sport\":\"BOXING\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 대전을_삭제하면_204가_반환된다() throws Exception {
+        mockMvc.perform(delete("/api/battles/1"))
+                .andExpect(status().isNoContent());
+
+        verify(battleService).deleteBattle(1L);
     }
 
     @Test

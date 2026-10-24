@@ -51,9 +51,9 @@ public class PostController {
         return ResponseEntity.ok(postService.updatePost(postId, command));
     }
 
-    @Operation(summary = "게시글 삭제", description = "작성자 본인 또는 ADMIN만 삭제할 수 있다.")
+    @Operation(summary = "게시글 삭제", description = "ADMIN만 삭제할 수 있다.")
     @ApiResponse(responseCode = "204", description = "삭제됨")
-    @PreAuthorize("@postAccessGuard.isAuthorOrAdmin(authentication, #postId)")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{postId}")
     public ResponseEntity<Void> deletePost(@Parameter(description = "게시글 ID") @PathVariable Long postId) {
         postService.deletePost(postId);
