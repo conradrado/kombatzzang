@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.sprint.mission.matzzang.user.constants.Region;
 import com.sprint.mission.matzzang.user.constants.WeightClass;
@@ -13,6 +16,10 @@ import com.sprint.mission.matzzang.user.constants.UserLevel;
 import com.sprint.mission.matzzang.user.constants.UserRole;
 import com.sprint.mission.matzzang.common.dto.CursorPageResponse;
 import com.sprint.mission.matzzang.user.dto.UserUpdateCommand;
+import com.sprint.mission.matzzang.user.dto.UserCreateCommand;
+import com.sprint.mission.matzzang.user.exception.DuplicateEmailException;
+import com.sprint.mission.matzzang.user.exception.DuplicateUsernameException;
+import org.mockito.ArgumentCaptor;
 import java.util.List;
 import com.sprint.mission.matzzang.user.dto.UserRegionUpdateCommand;
 import com.sprint.mission.matzzang.user.dto.UserResponse;
@@ -46,6 +53,55 @@ class UserServiceTest {
                 .password("encoded")
                 .role(UserRole.MEMBER)
                 .build();
+    }
+
+    @Test
+    void 회원가입하면_비밀번호가_암호화되어_MEMBER로_저장된다() {
+        UserCreateCommand command = new UserCreateCommand("tester", "tester@example.com", "password123", null);
+        given(userRepository.existsByEmail("tester@example.com")).willReturn(false);
+        given(userRepository.existsByUsername("tester")).willReturn(false);
+        given(passwordEncoder.encode("password123")).willReturn("encoded-password");
+        given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        UserResponse response = userService.createUser(command);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        User saved = captor.getValue();
+        assertThat(saved.getPassword()).isEqualTo("encoded-password").isNotEqualTo("password123");
+        assertThat(saved.getRole()).isEqualTo(UserRole.MEMBER);
+        assertThat(saved.getRegion()).isEqualTo(Region.UNKNOWN);
+        assertThat(saved.getSport()).isEqualTo(Sport.UNKNOWN);
+        assertThat(saved.getWeightClass()).isEqualTo(WeightClass.UNKNOWN);
+        assertThat(saved.getActivityRegion()).isEqualTo(Region.UNKNOWN);
+        assertThat(response.username()).isEqualTo("tester");
+        assertThat(response.email()).isEqualTo("tester@example.com");
+        verify(passwordEncoder, times(1)).encode("password123");
+    }
+
+    @Test
+    void 이메일이_중복이면_DuplicateEmailException이_발생한다() {
+        UserCreateCommand command = new UserCreateCommand("tester", "tester@example.com", "password123", null);
+        given(userRepository.existsByEmail("tester@example.com")).willReturn(true);
+
+        assertThatThrownBy(() -> userService.createUser(command))
+                .isInstanceOf(DuplicateEmailException.class);
+
+        verify(userRepository, never()).save(any(User.class));
+        verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    void 아이디가_중복이면_DuplicateUsernameException이_발생한다() {
+        UserCreateCommand command = new UserCreateCommand("tester", "tester@example.com", "password123", null);
+        given(userRepository.existsByEmail("tester@example.com")).willReturn(false);
+        given(userRepository.existsByUsername("tester")).willReturn(true);
+
+        assertThatThrownBy(() -> userService.createUser(command))
+                .isInstanceOf(DuplicateUsernameException.class);
+
+        verify(userRepository, never()).save(any(User.class));
+        verify(passwordEncoder, never()).encode(any());
     }
 
     @Test

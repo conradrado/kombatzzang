@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -16,6 +17,8 @@ import com.sprint.mission.matzzang.user.constants.Region;
 import com.sprint.mission.matzzang.user.constants.UserLevel;
 import com.sprint.mission.matzzang.user.constants.UserRole;
 import com.sprint.mission.matzzang.user.dto.UserResponse;
+import com.sprint.mission.matzzang.user.exception.DuplicateEmailException;
+import com.sprint.mission.matzzang.user.exception.DuplicateUsernameException;
 import com.sprint.mission.matzzang.user.service.UserService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +52,66 @@ class UserControllerTest {
     private UserResponse response() {
         return new UserResponse(1L, "fighter", "f@test.com", null, UserRole.MEMBER, null,
                 Sport.BOXING, WeightClass.LIGHT, Region.SEOUL, 3, 1, UserLevel.AMATEUR, "안녕", null, null);
+    }
+
+    private static final String VALID_BODY =
+            "{\"username\":\"fighter\",\"email\":\"f@test.com\",\"password\":\"password123\"}";
+
+    @Test
+    void 회원가입하면_201과_유저가_반환되고_비밀번호는_노출되지_않는다() throws Exception {
+        given(userService.createUser(any())).willReturn(response());
+
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.username").value("fighter"))
+                .andExpect(jsonPath("$.email").value("f@test.com"))
+                .andExpect(jsonPath("$.password").doesNotExist());
+    }
+
+    @Test
+    void 이메일이_중복이면_409가_반환된다() throws Exception {
+        given(userService.createUser(any())).willThrow(new DuplicateEmailException("f@test.com"));
+
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void 아이디가_중복이면_409가_반환된다() throws Exception {
+        given(userService.createUser(any())).willThrow(new DuplicateUsernameException("fighter"));
+
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void 이메일_형식이_잘못되면_400이_반환된다() throws Exception {
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"fighter\",\"email\":\"not-an-email\",\"password\":\"password123\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 비밀번호가_8자_미만이면_400이_반환된다() throws Exception {
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"fighter\",\"email\":\"f@test.com\",\"password\":\"short\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 아이디가_비어_있으면_400이_반환된다() throws Exception {
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"\",\"email\":\"f@test.com\",\"password\":\"password123\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
