@@ -45,7 +45,6 @@ out/
 
 ### Docker ###
 .env
-!.env
 
 ### harness ###
 harness/runs/
