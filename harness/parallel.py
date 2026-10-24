@@ -186,8 +186,11 @@ def main():
                 shutil.rmtree(r["path"], ignore_errors=True)
     print("\n" + summarize(results))
     for r in results:
+        draft = f"{log_dir}/issue-{r['issue']}-pr-body.md"
         if r["status"] == "PUSHED":
-            print(f"PR: gh pr create --base {base} --head {r['branch']}  (초안: {log_dir}/issue-{r['issue']}-pr-body.md)")
+            print(f"PR: gh pr create --base {base} --head {r['branch']}  (초안: {draft})")
+        elif r["status"] == "COMMITTED":
+            print(f"push: git -C {r['path']} push -u origin {r['branch']}  (PR 초안: {draft})")
     sys.exit(0 if all(r["status"] in ("PUSHED", "COMMITTED") for r in results) else 1)
 
 
