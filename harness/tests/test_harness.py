@@ -343,6 +343,37 @@ class ParallelTest(unittest.TestCase):
             self.assertEqual(parallel.add_worktree(repo, 7, "other", "dev"), (path, branch))
             sh(repo, "git", "worktree", "remove", "--force", str(path))
 
+    def test_open_pr_uses_latest_draft(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp) / "harness/runs/20260101-000000"
+            run.mkdir(parents=True)
+            (run / "pr-title.txt").write_text("Feat: t (#1)\n", encoding="utf-8")
+            (run / "pr-body.md").write_text("body", encoding="utf-8")
+            calls = []
+            orig_json, orig_gh = parallel._gh_json, branching._gh
+            parallel._gh_json = lambda *a, **k: []
+            branching._gh = lambda repo, *a: calls.append(a) or "https://github.com/o/r/pull/9\n"
+            try:
+                url = parallel.open_pr(load_config(), tmp, "feature/1-x", "dev")
+            finally:
+                parallel._gh_json, branching._gh = orig_json, orig_gh
+            self.assertTrue(url.endswith("/pull/9"))
+            args = calls[0]
+            self.assertEqual(args[args.index("--title") + 1], "Feat: t (#1)")
+            self.assertEqual(args[args.index("--head") + 1], "feature/1-x")
+
+    def test_open_pr_reuses_existing_and_requires_draft(self):
+        orig = parallel._gh_json
+        parallel._gh_json = lambda *a, **k: [{"url": "https://x/pull/3"}]
+        try:
+            self.assertEqual(parallel.open_pr(load_config(), ".", "b", "dev"), "https://x/pull/3")
+            parallel._gh_json = lambda *a, **k: []
+            with tempfile.TemporaryDirectory() as tmp:
+                with self.assertRaises(parallel.ParallelError):
+                    parallel.open_pr(load_config(), tmp, "b", "dev")
+        finally:
+            parallel._gh_json = orig
+
     def test_summarize_lists_every_issue(self):
         out = parallel.summarize([{"issue": 1, "status": "PUSHED", "branch": "feature/1-a", "detail": ""},
                                   {"issue": 2, "status": "FAILED", "branch": None, "detail": "x"}])
