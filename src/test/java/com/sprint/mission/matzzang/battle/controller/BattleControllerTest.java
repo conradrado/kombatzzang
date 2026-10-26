@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -117,5 +118,47 @@ class BattleControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void opponentId가_0이면_400이_반환된다() throws Exception {
+        mockMvc.perform(post("/api/battles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"opponentId\":0,\"sport\":\"BOXING\"}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(battleService);
+    }
+
+    @Test
+    void scheduledAt이_과거이면_400이_반환된다() throws Exception {
+        mockMvc.perform(post("/api/battles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"opponentId\":2,\"sport\":\"BOXING\",\"scheduledAt\":\"2000-01-01T00:00:00Z\"}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(battleService);
+    }
+
+    @Test
+    void location이_255자를_넘으면_400이_반환된다() throws Exception {
+        String location = "a".repeat(256);
+
+        mockMvc.perform(post("/api/battles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"opponentId\":2,\"sport\":\"BOXING\",\"location\":\"" + location + "\"}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(battleService);
+    }
+
+    @Test
+    void 결과_기록에_winnerId가_0이면_400이_반환된다() throws Exception {
+        mockMvc.perform(patch("/api/battles/10/result")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"winnerId\":0}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(battleService);
     }
 }
