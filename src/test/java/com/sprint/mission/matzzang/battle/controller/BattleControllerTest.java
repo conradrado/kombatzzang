@@ -3,6 +3,7 @@ package com.sprint.mission.matzzang.battle.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -14,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.sprint.mission.matzzang.auth.jwt.JwtPrincipal;
 import com.sprint.mission.matzzang.battle.constants.BattleStatus;
 import com.sprint.mission.matzzang.battle.dto.BattleResponse;
+import com.sprint.mission.matzzang.battle.exception.BattleNotFoundException;
 import com.sprint.mission.matzzang.battle.service.BattleService;
 import com.sprint.mission.matzzang.common.exception.GlobalExceptionHandler;
 import com.sprint.mission.matzzang.user.constants.Sport;
@@ -74,6 +76,8 @@ class BattleControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(10))
                 .andExpect(jsonPath("$.status").value("REQUESTED"));
+
+        verify(battleService).createBattle(eq(1L), any());
     }
 
     @Test
@@ -116,6 +120,86 @@ class BattleControllerTest {
         mockMvc.perform(patch("/api/battles/10/result")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 대전을_거절하면_200이_반환된다() throws Exception {
+        given(battleService.rejectBattle(10L)).willReturn(response(BattleStatus.REJECTED, null));
+
+        mockMvc.perform(patch("/api/battles/10/reject"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"));
+    }
+
+    @Test
+    void 대전을_취소하면_200이_반환된다() throws Exception {
+        given(battleService.cancelBattle(10L)).willReturn(response(BattleStatus.CANCELED, null));
+
+        mockMvc.perform(patch("/api/battles/10/cancel"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELED"));
+    }
+
+    @Test
+    void 결과를_기록하면_200과_승자가_반환된다() throws Exception {
+        given(battleService.recordResult(eq(10L), any())).willReturn(response(BattleStatus.COMPLETED, 1L));
+
+        mockMvc.perform(patch("/api/battles/10/result")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"winnerId\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.winnerId").value(1));
+    }
+
+    @Test
+    void sport가_없으면_400이_반환되고_서비스는_호출되지_않는다() throws Exception {
+        mockMvc.perform(post("/api/battles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"opponentId\":2}"))
+                .andExpect(status().isBadRequest());
+
+        verify(battleService, never()).createBattle(any(), any());
+    }
+
+    @Test
+    void location이_256자이면_400이_반환되고_서비스는_호출되지_않는다() throws Exception {
+        String location = "a".repeat(256);
+
+        mockMvc.perform(post("/api/battles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"opponentId\":2,\"sport\":\"BOXING\",\"location\":\"" + location + "\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(battleService, never()).createBattle(any(), any());
+    }
+
+    @Test
+    void 존재하지_않는_대전을_조회하면_404가_반환된다() throws Exception {
+        given(battleService.getBattle(99L)).willThrow(new BattleNotFoundException(99L));
+
+        mockMvc.perform(get("/api/battles/99"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void 수락할_수_없는_상태이면_409가_반환된다() throws Exception {
+        given(battleService.acceptBattle(10L)).willThrow(new IllegalStateException("신청 상태의 대전만 수락할 수 있습니다."));
+
+        mockMvc.perform(patch("/api/battles/10/accept"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void 자기_자신에게_신청하면_400이_반환된다() throws Exception {
+        given(battleService.createBattle(eq(1L), any()))
+                .willThrow(new IllegalArgumentException("자기 자신에게 신청할 수 없습니다."));
+
+        mockMvc.perform(post("/api/battles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"opponentId\":1,\"sport\":\"BOXING\"}"))
                 .andExpect(status().isBadRequest());
     }
 }
