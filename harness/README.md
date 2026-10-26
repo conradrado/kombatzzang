@@ -21,8 +21,9 @@ python harness/parallel.py --auto 2         # 브랜치/담당자 없는 열린 
 python harness/parallel.py 93 92 --no-push  # 커밋까지만
 python harness/parallel.py 93 92 --no-pr    # push 까지만 (PR 은 직접 등록)
 python harness/parallel.py 93 --cleanup     # push 성공한 worktree 삭제
+python harness/parallel.py 93 92 --no-predict  # 건드릴 파일 예측·배치 분할 생략
 ```
-이슈마다 `<저장소>-wt-<번호>` worktree 와 `feature/<번호>-<slug>` 브랜치(`origin/dev` 기준)를 만들고 그 안에서 `run.py --no-branch` 를 돌린다. 종료 코드 0(테스트 green + Evaluator PASS + 커밋 완료)이고 dev 보다 앞선 커밋이 있는 브랜치만 **오케스트레이터가** `git push -u origin` 한다. 에이전트의 push/gh 금지는 그대로다. push 후 Writer 가 만든 PR 초안(제목/본문)으로 `gh pr create` 까지 하며(담당자는 `HARNESS_ASSIGNEE`), 이미 열린 PR 이 있으면 재사용한다. 초안은 `runs/parallel-*/issue-N-pr-*` 에도 모은다. `--workers`(기본 3)만큼 동시에 돌고, 비용 상한은 이슈 수 × `max_total_cost_usd` 다. `.env` 같은 gitignore 파일은 worktree 로 복사되지 않는다.
+이슈마다 `<저장소>-wt-<번호>` worktree 와 `feature/<번호>-<slug>` 브랜치(`origin/dev` 기준)를 만들고 그 안에서 `run.py --no-branch` 를 돌린다. 종료 코드 0(테스트 green + Evaluator PASS + 커밋 완료)이고 dev 보다 앞선 커밋이 있는 브랜치만 **오케스트레이터가** `git push -u origin` 한다. 에이전트의 push/gh 금지는 그대로다. push 후 Writer 가 만든 PR 초안(제목/본문)으로 `gh pr create` 까지 하며(담당자는 `HARNESS_ASSIGNEE`), 이미 열린 PR 이 있으면 재사용한다. 초안은 `runs/parallel-*/issue-N-pr-*` 에도 모은다. **충돌 방지:** 시작 전에 이슈별로 건드릴 파일을 예측(읽기 전용 CLI)해 겹치는 이슈는 다른 배치로 나눠 순차 실행한다. push 직전에는 `integrate.py` 가 락 안에서 한 번에 하나씩 최신 `dev` 로 rebase 하고, 먼저 끝난 형제 브랜치와 충돌하면 그 브랜치를 merge 한다(PR 에 해당 커밋이 포함된다). 충돌은 **Resolver**(`prompts/resolver.md`, 충돌 파일 밖은 훅이 거부)가 풀고 마커가 남으면 실패 처리한다. 통합으로 코드가 바뀌었으면 `gradlew test` 를 다시 돌리며, 실패하거나 풀지 못하면 `CONFLICT` 로 표시하고 push 하지 않는다. `--workers`(기본 3)만큼 동시에 돌고, 비용 상한은 이슈 수 × `max_total_cost_usd` 다. `.env` 같은 gitignore 파일은 worktree 로 복사되지 않는다.
 
 ## 동작
 0. **Router** (새 run 만, `branching.py`): 열린 이슈와 브랜치 목록을 보고 목표와 같은 작업이 있는지 판정한다. 후보에 없는 값은 거부한다.

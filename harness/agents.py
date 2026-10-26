@@ -8,7 +8,7 @@ from pathlib import Path
 
 from config import HARNESS_DIR, PROMPTS_DIR, REPO_ROOT
 from schemas import (COMMIT_SCHEMA, EVALUATION_SCHEMA, GENERATOR_SCHEMA, PLAN_SCHEMA,
-                     PR_SCHEMA, ROUTE_SCHEMA, SchemaError, validate)
+                     PR_SCHEMA, RESOLVE_SCHEMA, ROUTE_SCHEMA, SchemaError, validate)
 
 # Planner / Evaluator 는 코드를 수정하지 않으므로 읽기 도구만 열어 준다.
 READ_ONLY_TOOLS = "Read,Grep,Glob"
@@ -61,6 +61,15 @@ class ClaudeAgents:
         scope = json.dumps({"repo_root": str(self.repo_root), "allowed_paths": list(allowed_paths)},
                            ensure_ascii=False)
         return self._call("generator", prompt, GENERATOR_SCHEMA, GENERATOR_TOOLS,
+                          allowed=GENERATOR_ALLOWED, disallowed=GENERATOR_DISALLOWED,
+                          settings=self._scope_hook_settings(),
+                          env_extra={"HARNESS_SCOPE": scope})
+
+    def resolve(self, prompt, conflicted_files):
+        """머지/리베이스 충돌 파일을 푼다(RESOLVE_SCHEMA). 훅이 충돌 파일 밖의 쓰기를 거부한다."""
+        scope = json.dumps({"repo_root": str(self.repo_root), "allowed_paths": list(conflicted_files)},
+                           ensure_ascii=False)
+        return self._call("resolver", prompt, RESOLVE_SCHEMA, GENERATOR_TOOLS,
                           allowed=GENERATOR_ALLOWED, disallowed=GENERATOR_DISALLOWED,
                           settings=self._scope_hook_settings(),
                           env_extra={"HARNESS_SCOPE": scope})
