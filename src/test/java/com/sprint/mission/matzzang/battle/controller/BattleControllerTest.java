@@ -185,7 +185,7 @@ class BattleControllerTest {
     }
 
     @Test
-    void location이_255자를_넘으면_400이_반환된다() throws Exception {
+    void location이_256자이면_400이_반환되고_서비스는_호출되지_않는다() throws Exception {
         String location = "a".repeat(256);
 
         mockMvc.perform(post("/api/battles")

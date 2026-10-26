@@ -4,6 +4,7 @@ import com.sprint.mission.matzzang.battle.constants.BattleStatus;
 import com.sprint.mission.matzzang.common.entity.UpdatableEntity;
 import com.sprint.mission.matzzang.user.constants.Sport;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -46,9 +47,13 @@ public class Battle extends UpdatableEntity {
     @Column(name = "winner_id")
     private Long winnerId;
 
+    @Embedded
+    private BattleRule rule;
+
     @Builder
     private Battle(Long challengerId, Long opponentId, Sport sport, Instant scheduledAt,
-                   String location, String message, BattleStatus status) {
+                   String location, String message, BattleStatus status, BattleRule rule) {
+        this.rule = rule != null ? rule : BattleRule.defaultRule();
         this.challengerId = challengerId;
         this.opponentId = opponentId;
         this.sport = sport;
@@ -56,6 +61,16 @@ public class Battle extends UpdatableEntity {
         this.location = location;
         this.message = message;
         this.status = status;
+    }
+
+    public void changeRule(BattleRule rule) {
+        if (rule == null) {
+            throw new IllegalArgumentException("대전 규칙은 필수입니다.");
+        }
+        if (status != BattleStatus.REQUESTED) {
+            throw new IllegalStateException("신청 상태의 대전만 규칙을 변경할 수 있습니다. status=" + status);
+        }
+        this.rule = rule;
     }
 
     public void accept() {
@@ -88,5 +103,12 @@ public class Battle extends UpdatableEntity {
         }
         this.status = BattleStatus.COMPLETED;
         this.winnerId = winnerId;
+    }
+
+    public Long getLoserId() {
+        if (status != BattleStatus.COMPLETED || winnerId == null) {
+            return null;
+        }
+        return winnerId.equals(challengerId) ? opponentId : challengerId;
     }
 }
