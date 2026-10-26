@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import branching
 import guard
+import integrate
 import parallel
 import publish
 from config import load_config
@@ -379,6 +380,91 @@ class ParallelTest(unittest.TestCase):
                                   {"issue": 2, "status": "FAILED", "branch": None, "detail": "x"}])
         self.assertIn("#1", out)
         self.assertIn("FAILED", out)
+
+
+class BatchTest(unittest.TestCase):
+    def test_paths_overlap_same_file_or_parent_dir(self):
+        self.assertTrue(parallel.paths_overlap({"a/B.java"}, {"a/B.java"}))
+        self.assertTrue(parallel.paths_overlap({"a/"}, {"a/b/C.java"}))
+        self.assertTrue(parallel.paths_overlap({"a/b"}, {"a/b/C.java"}))
+        self.assertFalse(parallel.paths_overlap({"a/B.java"}, {"a/BC.java"}))
+        self.assertFalse(parallel.paths_overlap(set(), {"a/"}))
+
+    def test_split_batches_separates_overlapping_issues(self):
+        touch = {1: {"x/A.java"}, 2: {"x/A.java"}, 3: {"y/B.java"}}
+        self.assertEqual(parallel.split_batches([1, 2, 3], touch), [[1, 3], [2]])
+        self.assertEqual(parallel.split_batches([1, 2], {}), [[1, 2]])
+
+
+class ResolverFake:
+    """충돌 마커를 지우고 양쪽 줄을 모두 남긴다."""
+    def __init__(self, path):
+        self.path = path
+
+    def resolve(self, prompt, files):
+        for f in files:
+            text = (self.path / f).read_text(encoding="utf-8")
+            kept = [l for l in text.splitlines() if not l.startswith(("<<<<<<<", "=======", ">>>>>>>"))]
+            (self.path / f).write_text("\n".join(kept) + "\n", encoding="utf-8")
+        return {"summary": "both", "resolved_files": list(files)}, 0.1
+
+
+class IntegrateTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        (root / "repo").mkdir()
+        self.repo = make_repo(root / "repo")
+        (self.repo / "src/main/App.txt").write_text("base\n", encoding="utf-8")
+        sh(self.repo, "git", "add", ".")
+        sh(self.repo, "git", "commit", "-qm", "app")
+        sh(self.repo, "git", "branch", "dev")
+        self.wt = {n: parallel.add_worktree(self.repo, n, "w", "dev")[0] for n in (1, 2)}
+
+    def tearDown(self):
+        for p in self.wt.values():
+            sh(self.repo, "git", "worktree", "remove", "--force", str(p))
+        self.tmp.cleanup()
+
+    def commit(self, n, line):
+        (self.wt[n] / "src/main/App.txt").write_text(f"base\n{line}\n", encoding="utf-8")
+        sh(self.wt[n], "git", "commit", "-qam", f"issue {n}")
+
+    def integrator(self, ok=True):
+        passed = lambda cfg, plan, repo, log: VerifyResult(ok, 0 if ok else 1, False, "", [])
+        return integrate.Integrator(load_config(), "dev", lambda path: ResolverFake(path), passed, log=lambda *a: None)
+
+    def test_rebase_conflict_with_base_is_resolved(self):
+        self.commit(1, "from-issue")
+        (self.repo / "src/main/App.txt").write_text("base\nfrom-dev\n", encoding="utf-8")
+        sh(self.repo, "git", "commit", "-qam", "dev moved")
+        sh(self.repo, "git", "branch", "-f", "dev")
+        info = self.integrator().integrate(1, self.wt[1], "feature/1-w", "t")
+        self.assertTrue(info["changed"])
+        text = (self.wt[1] / "src/main/App.txt").read_text(encoding="utf-8")
+        self.assertIn("from-dev", text)
+        self.assertIn("from-issue", text)
+        self.assertEqual(guard.git(self.wt[1], "status", "--porcelain").stdout, "")
+
+    def test_conflicting_sibling_is_merged_in(self):
+        self.commit(1, "one")
+        self.commit(2, "two")
+        integ = self.integrator()
+        first = integ.integrate(1, self.wt[1], "feature/1-w", "t")
+        self.assertFalse(first["changed"])
+        second = integ.integrate(2, self.wt[2], "feature/2-w", "t")
+        self.assertEqual(second["merged"], ["feature/1-w"])
+        text = (self.wt[2] / "src/main/App.txt").read_text(encoding="utf-8")
+        self.assertIn("one", text)
+        self.assertIn("two", text)
+
+    def test_failed_verify_after_change_raises(self):
+        self.commit(1, "one")
+        (self.repo / "README.md").write_text("moved", encoding="utf-8")
+        sh(self.repo, "git", "commit", "-qam", "dev moved")
+        sh(self.repo, "git", "branch", "-f", "dev")
+        with self.assertRaises(integrate.IntegrationError):
+            self.integrator(ok=False).integrate(1, self.wt[1], "feature/1-w", "t")
 
 
 class SchemaTest(unittest.TestCase):
