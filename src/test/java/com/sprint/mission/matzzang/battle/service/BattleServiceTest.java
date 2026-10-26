@@ -16,6 +16,7 @@ import com.sprint.mission.matzzang.battle.event.BattleRequestedEvent;
 import com.sprint.mission.matzzang.battle.exception.BattleNotFoundException;
 import com.sprint.mission.matzzang.battle.repository.BattleRepository;
 import com.sprint.mission.matzzang.user.constants.Sport;
+import com.sprint.mission.matzzang.user.entity.User;
 import com.sprint.mission.matzzang.user.exception.UserNotFoundException;
 import com.sprint.mission.matzzang.user.repository.UserRepository;
 import java.time.Instant;
@@ -200,11 +201,74 @@ class BattleServiceTest {
     @Test
     void 결과를_기록하면_COMPLETED와_승자가_반영된다() {
         given(battleRepository.findById(1L)).willReturn(Optional.of(battle(BattleStatus.ACCEPTED)));
+        given(userRepository.findById(1L)).willReturn(Optional.of(User.builder().build()));
+        given(userRepository.findById(2L)).willReturn(Optional.of(User.builder().build()));
 
         BattleResponse response = battleService.recordResult(1L, new BattleResultCommand(2L));
 
         assertThat(response.status()).isEqualTo(BattleStatus.COMPLETED);
         assertThat(response.winnerId()).isEqualTo(2L);
+    }
+
+    @Test
+    void 상대가_이기면_승자의_wins와_패자의_losses가_1_증가한다() {
+        User challenger = User.builder().build();
+        User opponent = User.builder().build();
+        given(battleRepository.findById(1L)).willReturn(Optional.of(battle(BattleStatus.ACCEPTED)));
+        given(userRepository.findById(1L)).willReturn(Optional.of(challenger));
+        given(userRepository.findById(2L)).willReturn(Optional.of(opponent));
+
+        battleService.recordResult(1L, new BattleResultCommand(2L));
+
+        assertThat(opponent.getWins()).isEqualTo(1);
+        assertThat(opponent.getLosses()).isZero();
+        assertThat(challenger.getLosses()).isEqualTo(1);
+        assertThat(challenger.getWins()).isZero();
+    }
+
+    @Test
+    void 신청자가_이기면_승자의_wins와_패자의_losses가_1_증가한다() {
+        User challenger = User.builder().build();
+        User opponent = User.builder().build();
+        given(battleRepository.findById(1L)).willReturn(Optional.of(battle(BattleStatus.ACCEPTED)));
+        given(userRepository.findById(1L)).willReturn(Optional.of(challenger));
+        given(userRepository.findById(2L)).willReturn(Optional.of(opponent));
+
+        battleService.recordResult(1L, new BattleResultCommand(1L));
+
+        assertThat(challenger.getWins()).isEqualTo(1);
+        assertThat(challenger.getLosses()).isZero();
+        assertThat(opponent.getLosses()).isEqualTo(1);
+        assertThat(opponent.getWins()).isZero();
+    }
+
+    @Test
+    void 승자_유저가_없으면_결과_기록시_UserNotFoundException이_발생한다() {
+        given(battleRepository.findById(1L)).willReturn(Optional.of(battle(BattleStatus.ACCEPTED)));
+        given(userRepository.findById(2L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> battleService.recordResult(1L, new BattleResultCommand(2L)))
+                .isInstanceOf(UserNotFoundException.class);
+    }
+
+    @Test
+    void 패자_유저가_없으면_결과_기록시_UserNotFoundException이_발생한다() {
+        given(battleRepository.findById(1L)).willReturn(Optional.of(battle(BattleStatus.ACCEPTED)));
+        given(userRepository.findById(2L)).willReturn(Optional.of(User.builder().build()));
+        given(userRepository.findById(1L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> battleService.recordResult(1L, new BattleResultCommand(2L)))
+                .isInstanceOf(UserNotFoundException.class);
+    }
+
+    @Test
+    void 참가자가_아닌_승자로_결과를_기록하면_IllegalArgumentException이_발생하고_유저를_조회하지_않는다() {
+        given(battleRepository.findById(1L)).willReturn(Optional.of(battle(BattleStatus.ACCEPTED)));
+
+        assertThatThrownBy(() -> battleService.recordResult(1L, new BattleResultCommand(3L)))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(userRepository, never()).findById(any());
     }
 
     @Test
@@ -221,6 +285,8 @@ class BattleServiceTest {
 
         assertThatThrownBy(() -> battleService.recordResult(1L, new BattleResultCommand(2L)))
                 .isInstanceOf(IllegalStateException.class);
+
+        verify(userRepository, never()).findById(any());
     }
 
     @Test

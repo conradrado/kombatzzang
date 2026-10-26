@@ -104,4 +104,11 @@ public class Battle extends UpdatableEntity {
         this.status = BattleStatus.COMPLETED;
         this.winnerId = winnerId;
     }
+
+    public Long getLoserId() {
+        if (status != BattleStatus.COMPLETED || winnerId == null) {
+            return null;
+        }
+        return winnerId.equals(challengerId) ? opponentId : challengerId;
+    }
 }
