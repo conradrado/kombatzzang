@@ -8,6 +8,7 @@ import com.sprint.mission.matzzang.battle.entity.Battle;
 import com.sprint.mission.matzzang.battle.event.BattleRequestedEvent;
 import com.sprint.mission.matzzang.battle.exception.BattleNotFoundException;
 import com.sprint.mission.matzzang.battle.repository.BattleRepository;
+import com.sprint.mission.matzzang.user.entity.User;
 import com.sprint.mission.matzzang.user.exception.UserNotFoundException;
 import com.sprint.mission.matzzang.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -78,6 +79,12 @@ public class BattleService {
     public BattleResponse recordResult(Long battleId, BattleResultCommand command) {
         Battle battle = findBattleById(battleId);
         battle.complete(command.winnerId());
+
+        // 결과 검증 이후 승자 승수, 패자 패수를 같은 트랜잭션에서 갱신
+        User winner = findUserById(command.winnerId());
+        User loser = findUserById(battle.getLoserId());
+        winner.updateRecord(winner.getWins() + 1, null, null);
+        loser.updateRecord(null, loser.getLosses() + 1, null);
         return BattleResponse.from(battle);
     }
 
@@ -89,5 +96,10 @@ public class BattleService {
     private Battle findBattleById(Long battleId) {
         return battleRepository.findById(battleId)
                 .orElseThrow(() -> new BattleNotFoundException(battleId));
+    }
+
+    private User findUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
     }
 }
