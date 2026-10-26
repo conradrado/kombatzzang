@@ -1,10 +1,10 @@
 package com.sprint.mission.matzzang.follow.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -12,18 +12,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.sprint.mission.matzzang.auth.jwt.JwtPrincipal;
 import com.sprint.mission.matzzang.common.exception.GlobalExceptionHandler;
 import com.sprint.mission.matzzang.follow.dto.FollowResponse;
+import com.sprint.mission.matzzang.follow.exception.AlreadyFollowingException;
+import com.sprint.mission.matzzang.follow.exception.FollowNotFoundException;
+import com.sprint.mission.matzzang.follow.exception.SelfFollowException;
 import com.sprint.mission.matzzang.follow.service.FollowService;
 import com.sprint.mission.matzzang.user.constants.UserRole;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
@@ -50,7 +51,7 @@ class FollowControllerTest {
                 .build();
         JwtPrincipal principal = new JwtPrincipal(1L, UserRole.MEMBER);
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(principal, null, java.util.List.of()));
+                new UsernamePasswordAuthenticationToken(principal, null, List.of()));
     }
 
     @AfterEach
@@ -60,24 +61,65 @@ class FollowControllerTest {
 
     @Test
     void 팔로우하면_201과_응답이_반환된다() throws Exception {
-        given(followService.createFollow(eq(1L), any()))
-                .willReturn(new FollowResponse(10L, 1L, 2L, null));
+        given(followService.follow(1L, 2L)).willReturn(new FollowResponse(10L, 1L, 2L, null));
 
-        mockMvc.perform(post("/api/follows")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"followeeId\":2}"))
+        mockMvc.perform(post("/api/users/2/follow"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.followeeId").value(2));
+                .andExpect(jsonPath("$.followerId").value(1))
+                .andExpect(jsonPath("$.followingId").value(2));
+
+        verify(followService).follow(1L, 2L);
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"{}", "{\"followeeId\":null}", "{\"followeeId\":0}", "{\"followeeId\":-1}"})
-    void 잘못된_followeeId이면_400이_반환되고_서비스는_호출되지_않는다(String body) throws Exception {
-        mockMvc.perform(post("/api/follows")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isBadRequest());
+    @Test
+    void 자기_자신을_팔로우하면_400이_반환된다() throws Exception {
+        given(followService.follow(1L, 1L)).willThrow(new SelfFollowException());
 
-        verify(followService, never()).createFollow(any(), any());
+        mockMvc.perform(post("/api/users/1/follow"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 이미_팔로우_중이면_409가_반환된다() throws Exception {
+        given(followService.follow(1L, 2L)).willThrow(new AlreadyFollowingException());
+
+        mockMvc.perform(post("/api/users/2/follow"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void 언팔로우하면_204가_반환된다() throws Exception {
+        mockMvc.perform(delete("/api/users/2/follow"))
+                .andExpect(status().isNoContent());
+
+        verify(followService).unfollow(1L, 2L);
+    }
+
+    @Test
+    void 팔로우_관계가_없으면_언팔로우_시_404가_반환된다() throws Exception {
+        willThrow(new FollowNotFoundException()).given(followService).unfollow(1L, 2L);
+
+        mockMvc.perform(delete("/api/users/2/follow"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void 팔로워_목록을_조회하면_200이_반환된다() throws Exception {
+        given(followService.getFollowers(2L)).willReturn(List.of(new FollowResponse(10L, 1L, 2L, null)));
+
+        mockMvc.perform(get("/api/users/2/followers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].followerId").value(1))
+                .andExpect(jsonPath("$[0].followingId").value(2));
+    }
+
+    @Test
+    void 팔로잉_목록을_조회하면_200이_반환된다() throws Exception {
+        given(followService.getFollowings(1L)).willReturn(List.of(new FollowResponse(10L, 1L, 2L, null)));
+
+        mockMvc.perform(get("/api/users/1/followings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].followerId").value(1))
+                .andExpect(jsonPath("$[0].followingId").value(2));
     }
 }

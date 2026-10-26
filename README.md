@@ -58,6 +58,13 @@ Kombatzzang은 사용자의 경기 기록과 레벨을 분석하여
 - 자기소개
 
 ---
+
+# 📑 API Docs
+
+- API 명세서: [docs/api-spec.md](docs/api-spec.md)
+- Swagger UI: `/swagger-ui.html`
+
+---
 # 🛠 Tech Stack
 
 ## Backend

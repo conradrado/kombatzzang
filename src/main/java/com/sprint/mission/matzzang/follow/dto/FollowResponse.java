@@ -6,7 +6,7 @@ import java.time.Instant;
 public record FollowResponse(
         Long id,
         Long followerId,
-        Long followeeId,
+        Long followingId,
         Instant createdAt
 ) {
 
@@ -14,7 +14,7 @@ public record FollowResponse(
         return new FollowResponse(
                 follow.getId(),
                 follow.getFollowerId(),
-                follow.getFolloweeId(),
+                follow.getFollowingId(),
                 follow.getCreatedAt()
         );
     }
