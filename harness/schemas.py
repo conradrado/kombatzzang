@@ -43,6 +43,16 @@ GENERATOR_SCHEMA = {
     },
 }
 
+RESOLVE_SCHEMA = {
+    "type": "object",
+    "required": ["summary", "resolved_files"],
+    "properties": {
+        "summary": {"type": "string"},
+        "resolved_files": {"type": "array", "items": {"type": "string"}},
+        "notes": {"type": "string"},
+    },
+}
+
 EVALUATION_SCHEMA = {
     "type": "object",
     "required": ["verdict", "criteria", "feedback"],
