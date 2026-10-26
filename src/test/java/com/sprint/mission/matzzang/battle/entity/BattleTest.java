@@ -94,4 +94,21 @@ class BattleTest {
         assertThatThrownBy(() -> battle.complete(99L)).isInstanceOf(IllegalArgumentException.class);
         assertThat(battle.getStatus()).isEqualTo(BattleStatus.ACCEPTED);
     }
+
+    @Test
+    void 결과를_기록하면_승자가_아닌_참가자가_패자가_된다() {
+        Battle opponentWin = battle(BattleStatus.ACCEPTED);
+        Battle challengerWin = battle(BattleStatus.ACCEPTED);
+
+        opponentWin.complete(2L);
+        challengerWin.complete(1L);
+
+        assertThat(opponentWin.getLoserId()).isEqualTo(1L);
+        assertThat(challengerWin.getLoserId()).isEqualTo(2L);
+    }
+
+    @Test
+    void 완료_전에는_패자가_없다() {
+        assertThat(battle(BattleStatus.ACCEPTED).getLoserId()).isNull();
+    }
 }
