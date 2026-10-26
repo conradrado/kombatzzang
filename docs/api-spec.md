@@ -340,7 +340,50 @@
 
 ### 4.6 Follow
 
-미구현 - 추후 작성
+#### POST /api/users/{userId}/follow
+
+- 설명: 로그인한 사용자가 대상 사용자를 팔로우한다.
+- 권한: 인증
+- Path: `userId` (Long, 팔로우할 사용자 ID)
+- Response: `201 Created` `FollowResponse`
+- 오류:
+  - `400` 자기 자신을 팔로우하는 경우 (`SelfFollowException`)
+  - `404` 대상 사용자가 존재하지 않는 경우 (`UserNotFoundException`)
+  - `409` 이미 팔로우 중인 경우 (`AlreadyFollowingException`)
+
+#### DELETE /api/users/{userId}/follow
+
+- 설명: 로그인한 사용자가 대상 사용자의 팔로우를 취소한다.
+- 권한: 인증
+- Path: `userId` (Long, 언팔로우할 사용자 ID)
+- Response: `204 No Content`
+- 오류:
+  - `404` 팔로우 관계가 없는 경우 (`FollowNotFoundException`)
+
+#### GET /api/users/{userId}/followers
+
+- 설명: 대상 사용자를 팔로우하는 사용자(팔로워) 목록을 조회한다.
+- 권한: 인증
+- Path: `userId` (Long)
+- Response: `200 OK` `List<FollowResponse>` (페이지네이션 없음)
+
+#### GET /api/users/{userId}/followings
+
+- 설명: 대상 사용자가 팔로우하는 사용자(팔로잉) 목록을 조회한다.
+- 권한: 인증
+- Path: `userId` (Long)
+- Response: `200 OK` `List<FollowResponse>` (페이지네이션 없음)
+
+#### FollowResponse
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| id | Long | 팔로우 관계 ID |
+| followerId | Long | 팔로우를 건 사용자 ID |
+| followingId | Long | 팔로우 대상 사용자 ID |
+| createdAt | Instant | 팔로우 생성 시각 |
+
+> Follow 예외(`SelfFollowException`, `FollowNotFoundException`, `AlreadyFollowingException`)는 `GlobalExceptionHandler`가 아닌 `@ResponseStatus`로 상태 코드가 매핑된다.
 
 ## 부록: Enum 값
 
