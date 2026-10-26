@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Follow", description = "팔로우 관리 API")
 @RestController
-@RequestMapping("/api/users/{userId}")
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class FollowController {
 
@@ -35,25 +35,25 @@ public class FollowController {
     @PostMapping("/follow")
     public ResponseEntity<FollowResponse> follow(
             @AuthenticationPrincipal JwtPrincipal principal,
-            @Parameter(description = "팔로우할 사용자 ID") @PathVariable Long userId
+            @Valid @RequestBody FollowCreateRequest request
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(followService.follow(principal.userId(), userId));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(followService.follow(principal.userId(), request.followeeId()));
     }
 
     @Operation(summary = "언팔로우", description = "로그인한 사용자가 대상 사용자의 팔로우를 취소한다.")
     @ApiResponse(responseCode = "204", description = "삭제됨")
-    @DeleteMapping("/follow")
+    @DeleteMapping("/{userId}/follow")
     public ResponseEntity<Void> unfollow(
             @AuthenticationPrincipal JwtPrincipal principal,
             @Parameter(description = "언팔로우할 사용자 ID") @PathVariable Long userId
-            @Valid @RequestBody FollowCreateRequest request
     ) {
         followService.unfollow(principal.userId(), userId);
         return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "팔로워 목록 조회", description = "대상 사용자를 팔로우하는 사용자 목록을 조회한다.")
-    @GetMapping("/followers")
+    @GetMapping("/{userId}/followers")
     public ResponseEntity<List<FollowResponse>> getFollowers(
             @Parameter(description = "사용자 ID") @PathVariable Long userId
     ) {
@@ -61,7 +61,7 @@ public class FollowController {
     }
 
     @Operation(summary = "팔로잉 목록 조회", description = "대상 사용자가 팔로우하는 사용자 목록을 조회한다.")
-    @GetMapping("/followings")
+    @GetMapping("/{userId}/followings")
     public ResponseEntity<List<FollowResponse>> getFollowings(
             @Parameter(description = "사용자 ID") @PathVariable Long userId
     ) {
