@@ -340,13 +340,15 @@
 
 ### 4.6 Follow
 
-#### POST /api/users/{userId}/follow
+#### POST /api/users/follow
 
 - 설명: 로그인한 사용자가 대상 사용자를 팔로우한다.
 - 권한: 인증
-- Path: `userId` (Long, 팔로우할 사용자 ID)
+- Request Body: `FollowCreateRequest`
+  - `followeeId` (Long, 필수, 양수 — `@NotNull @Positive`, 팔로우할 사용자 ID)
 - Response: `201 Created` `FollowResponse`
 - 오류:
+  - `400` 요청 본문 검증 실패 (followeeId 누락 또는 0 이하, `MethodArgumentNotValidException`)
   - `400` 자기 자신을 팔로우하는 경우 (`SelfFollowException`)
   - `404` 대상 사용자가 존재하지 않는 경우 (`UserNotFoundException`)
   - `409` 이미 팔로우 중인 경우 (`AlreadyFollowingException`)

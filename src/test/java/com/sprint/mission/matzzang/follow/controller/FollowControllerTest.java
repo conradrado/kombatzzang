@@ -1,7 +1,9 @@
 package com.sprint.mission.matzzang.follow.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
@@ -63,7 +66,9 @@ class FollowControllerTest {
     void 팔로우하면_201과_응답이_반환된다() throws Exception {
         given(followService.follow(1L, 2L)).willReturn(new FollowResponse(10L, 1L, 2L, null));
 
-        mockMvc.perform(post("/api/users/2/follow"))
+        mockMvc.perform(post("/api/users/follow")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"followeeId\":2}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.followerId").value(1))
                 .andExpect(jsonPath("$.followingId").value(2));
@@ -75,7 +80,9 @@ class FollowControllerTest {
     void 자기_자신을_팔로우하면_400이_반환된다() throws Exception {
         given(followService.follow(1L, 1L)).willThrow(new SelfFollowException());
 
-        mockMvc.perform(post("/api/users/1/follow"))
+        mockMvc.perform(post("/api/users/follow")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"followeeId\":1}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -83,8 +90,40 @@ class FollowControllerTest {
     void 이미_팔로우_중이면_409가_반환된다() throws Exception {
         given(followService.follow(1L, 2L)).willThrow(new AlreadyFollowingException());
 
-        mockMvc.perform(post("/api/users/2/follow"))
+        mockMvc.perform(post("/api/users/follow")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"followeeId\":2}"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void followeeId가_없으면_400이_반환된다() throws Exception {
+        mockMvc.perform(post("/api/users/follow")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        verify(followService, never()).follow(any(), any());
+    }
+
+    @Test
+    void followeeId가_0이면_400이_반환된다() throws Exception {
+        mockMvc.perform(post("/api/users/follow")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"followeeId\":0}"))
+                .andExpect(status().isBadRequest());
+
+        verify(followService, never()).follow(any(), any());
+    }
+
+    @Test
+    void followeeId가_음수이면_400이_반환된다() throws Exception {
+        mockMvc.perform(post("/api/users/follow")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"followeeId\":-1}"))
+                .andExpect(status().isBadRequest());
+
+        verify(followService, never()).follow(any(), any());
     }
 
     @Test
