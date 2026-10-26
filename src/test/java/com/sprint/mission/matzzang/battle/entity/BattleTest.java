@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.sprint.mission.matzzang.battle.constants.BattleStatus;
 import com.sprint.mission.matzzang.user.constants.Sport;
+import com.sprint.mission.matzzang.user.constants.WeightClass;
 import org.junit.jupiter.api.Test;
 
 class BattleTest {
@@ -93,5 +94,52 @@ class BattleTest {
 
         assertThatThrownBy(() -> battle.complete(99L)).isInstanceOf(IllegalArgumentException.class);
         assertThat(battle.getStatus()).isEqualTo(BattleStatus.ACCEPTED);
+    }
+
+    @Test
+    void 규칙_없이_생성하면_기본_규칙이_적용된다() {
+        Battle battle = battle(BattleStatus.REQUESTED);
+
+        assertThat(battle.getRule()).isEqualTo(BattleRule.defaultRule());
+    }
+
+    @Test
+    void 규칙을_지정하면_그대로_저장된다() {
+        BattleRule rule = BattleRule.of(5, 2, WeightClass.UNKNOWN);
+
+        Battle battle = Battle.builder()
+                .challengerId(1L)
+                .opponentId(2L)
+                .sport(Sport.BOXING)
+                .status(BattleStatus.REQUESTED)
+                .rule(rule)
+                .build();
+
+        assertThat(battle.getRule()).isEqualTo(rule);
+    }
+
+    @Test
+    void 신청_상태에서_규칙을_변경할_수_있다() {
+        Battle battle = battle(BattleStatus.REQUESTED);
+        BattleRule rule = BattleRule.of(5, 2, WeightClass.UNKNOWN);
+
+        battle.changeRule(rule);
+
+        assertThat(battle.getRule()).isEqualTo(rule);
+    }
+
+    @Test
+    void 신청_상태가_아니면_규칙을_변경할_수_없다() {
+        Battle battle = battle(BattleStatus.ACCEPTED);
+
+        assertThatThrownBy(() -> battle.changeRule(BattleRule.defaultRule()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void 규칙이_null이면_변경할_수_없다() {
+        Battle battle = battle(BattleStatus.REQUESTED);
+
+        assertThatThrownBy(() -> battle.changeRule(null)).isInstanceOf(IllegalArgumentException.class);
     }
 }
