@@ -45,6 +45,13 @@ export async function login(email, password) {
   return data;
 }
 
+export function signup(username, email, password) {
+  return request('/api/users', {
+    method: 'POST',
+    body: { username, email, password },
+  });
+}
+
 export async function logout() {
   const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
   try {
