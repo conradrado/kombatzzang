@@ -42,6 +42,18 @@ services:
     networks:
       - matzzang-net
 
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    container_name: matzzang-frontend
+    depends_on:
+      - app
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - matzzang-net
+
   # --- 추후 추가 예정 (아직 비활성화 상태) ---------------------------------
   # redis:
   #   image: redis:7-alpine
