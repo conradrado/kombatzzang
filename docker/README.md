@@ -1,6 +1,6 @@
 # Docker 개발 환경
 
-`docker-compose.yml` 로 로컬 개발용 스택(PostgreSQL + Spring Boot 앱)을 실행한다.
+`docker-compose.yml` 로 로컬 개발용 스택(PostgreSQL + Spring Boot 앱 + nginx 프론트엔드)을 실행한다.
 Kafka, Redis 는 아직 포함되어 있지 않으며, 필요해지는 시점에 같은 방식으로 추가할 예정이다.
 
 ## 구성
@@ -9,6 +9,7 @@ Kafka, Redis 는 아직 포함되어 있지 않으며, 필요해지는 시점에
 |---|---|---|---|
 | `postgres` | 애플리케이션 DB | `docker/postgres/Dockerfile` (postgres:16-alpine 기반) | `5432` |
 | `app` | Spring Boot 애플리케이션 | `docker/app/Dockerfile` (멀티스테이지: gradle 빌드 → JRE 실행) | `8080` |
+| `frontend` | React 정적 파일 서빙 + `/api` 프록시(SSE 포함) | `docker/frontend/Dockerfile` (멀티스테이지: vite 빌드 → nginx) | `3000` |
 
 두 서비스는 `matzzang-net` 브리지 네트워크로 묶여 있고, `app` 은 `postgres` 가
 healthy 상태가 될 때까지 기다렸다가 기동한다(`depends_on.condition: service_healthy`).
@@ -18,8 +19,11 @@ docker-compose.yml
 docker/
 ├── postgres/
 │   └── Dockerfile          # postgres:16-alpine
-└── app/
-    └── Dockerfile          # Spring Boot 앱 빌드/실행 이미지
+├── app/
+│   └── Dockerfile          # Spring Boot 앱 빌드/실행 이미지
+└── frontend/
+    ├── Dockerfile          # vite 빌드 → nginx 이미지
+    └── nginx.conf          # 정적 서빙 + /api → app:8080 프록시
 ```
 
 ## 사용법
@@ -36,7 +40,7 @@ docker compose down          # 컨테이너/네트워크 제거, DB 볼륨(postg
 docker compose down -v       # DB 볼륨까지 완전히 삭제하고 싶을 때
 ```
 
-기동 후 `http://localhost:8080` 으로 앱에 접근할 수 있고, DB는 호스트에서
+기동 후 `http://localhost:3000` 으로 화면에, `http://localhost:8080` 으로 API 에 접근할 수 있고, DB는 호스트에서
 `localhost:5432` 로 접속할 수 있다 (예: `psql -h localhost -U matzzang -d matzzang`).
 
 ## 환경변수 (`.env`)

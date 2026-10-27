@@ -33,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -78,6 +79,25 @@ class UserServiceTest {
         assertThat(response.username()).isEqualTo("tester");
         assertThat(response.email()).isEqualTo("tester@example.com");
         verify(passwordEncoder, times(1)).encode("password123");
+    }
+
+    @Test
+    void 회원가입시_저장된_비밀번호는_BCrypt_해시이며_원문과_매칭된다() {
+        BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder();
+        UserService realEncoderService = new UserService(userRepository, bcrypt);
+        UserCreateCommand command = new UserCreateCommand("tester", "tester@example.com", "password123", null);
+        given(userRepository.existsByEmail("tester@example.com")).willReturn(false);
+        given(userRepository.existsByUsername("tester")).willReturn(false);
+        given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        realEncoderService.createUser(command);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        User saved = captor.getValue();
+        assertThat(saved.getPassword()).isNotEqualTo("password123");
+        assertThat(saved.getPassword()).matches("^\\$2[aby]\\$.+");
+        assertThat(new BCryptPasswordEncoder().matches("password123", saved.getPassword())).isTrue();
     }
 
     @Test
