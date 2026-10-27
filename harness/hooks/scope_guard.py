@@ -77,7 +77,8 @@ def main():
     if not raw_scope:
         return
     scope = json.loads(raw_scope)
-    reason = decide(json.load(sys.stdin), scope)
+    # Windows 기본 인코딩(cp949)으로 읽으면 한글 경로가 깨지므로 stdin 은 바이트로 받아 UTF-8 로 해석
+    reason = decide(json.loads(sys.stdin.buffer.read().decode("utf-8", errors="replace")), scope)
     if reason:
         deny(reason)
 

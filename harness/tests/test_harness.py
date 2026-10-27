@@ -210,6 +210,16 @@ class ScopeGuardHookTest(unittest.TestCase):
                              capture_output=True, text=True, encoding="utf-8").stdout
         self.assertEqual(out, "")
 
+    def test_process_handles_korean_path_regardless_of_system_encoding(self):
+        event = json.dumps({"tool_name": "Write", "tool_input": {"file_path": str(self.root / "한글 이슈.txt")}},
+                           ensure_ascii=False).encode("utf-8")
+        env = {**os.environ, "HARNESS_SCOPE": json.dumps(self.scope)}
+        env.pop("PYTHONUTF8", None)
+        env.pop("PYTHONIOENCODING", None)
+        proc = subprocess.run([sys.executable, "-X", "utf8=0", str(self.HOOK)], input=event, env=env, capture_output=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr.decode("utf-8", "replace"))
+        self.assertIn("한글 이슈.txt", json.loads(proc.stdout.decode("utf-8"))["hookSpecificOutput"]["permissionDecisionReason"])
+
 
 class BranchingTest(unittest.TestCase):
     ISSUES = [{"number": 18, "title": "[Feat] 게시글 - 예외 처리"}, {"number": 77, "title": "[Feat] 랜딩"}]
