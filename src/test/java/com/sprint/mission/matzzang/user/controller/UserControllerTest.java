@@ -18,6 +18,7 @@ import com.sprint.mission.matzzang.user.constants.UserLevel;
 import com.sprint.mission.matzzang.user.constants.UserRole;
 import com.sprint.mission.matzzang.user.dto.UserResponse;
 import com.sprint.mission.matzzang.user.exception.DuplicateEmailException;
+import com.sprint.mission.matzzang.user.exception.DuplicateUserException;
 import com.sprint.mission.matzzang.user.exception.DuplicateUsernameException;
 import com.sprint.mission.matzzang.user.service.UserService;
 import java.util.List;
@@ -88,6 +89,40 @@ class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_BODY))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void 동시_가입으로_중복이_발생하면_409가_반환된다() throws Exception {
+        given(userService.createUser(any())).willThrow(new DuplicateUserException());
+
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void 아이디가_21자이면_400이_반환된다() throws Exception {
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"" + "a".repeat(21) + "\",\"email\":\"f@test.com\",\"password\":\"password123\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 비밀번호가_65자이면_400이_반환된다() throws Exception {
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"fighter\",\"email\":\"f@test.com\",\"password\":\"" + "a".repeat(65) + "\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 이메일이_없으면_400이_반환된다() throws Exception {
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"fighter\",\"password\":\"password123\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

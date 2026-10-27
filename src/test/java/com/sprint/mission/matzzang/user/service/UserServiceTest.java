@@ -18,7 +18,9 @@ import com.sprint.mission.matzzang.common.dto.CursorPageResponse;
 import com.sprint.mission.matzzang.user.dto.UserUpdateCommand;
 import com.sprint.mission.matzzang.user.dto.UserCreateCommand;
 import com.sprint.mission.matzzang.user.exception.DuplicateEmailException;
+import com.sprint.mission.matzzang.user.exception.DuplicateUserException;
 import com.sprint.mission.matzzang.user.exception.DuplicateUsernameException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.mockito.ArgumentCaptor;
 import java.util.List;
 import com.sprint.mission.matzzang.user.dto.UserRecordUpdateCommand;
@@ -63,12 +65,12 @@ class UserServiceTest {
         given(userRepository.existsByEmail("tester@example.com")).willReturn(false);
         given(userRepository.existsByUsername("tester")).willReturn(false);
         given(passwordEncoder.encode("password123")).willReturn("encoded-password");
-        given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(userRepository.saveAndFlush(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         UserResponse response = userService.createUser(command);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(captor.capture());
+        verify(userRepository).saveAndFlush(captor.capture());
         User saved = captor.getValue();
         assertThat(saved.getPassword()).isEqualTo("encoded-password").isNotEqualTo("password123");
         assertThat(saved.getRole()).isEqualTo(UserRole.MEMBER);
@@ -88,12 +90,12 @@ class UserServiceTest {
         UserCreateCommand command = new UserCreateCommand("tester", "tester@example.com", "password123", null);
         given(userRepository.existsByEmail("tester@example.com")).willReturn(false);
         given(userRepository.existsByUsername("tester")).willReturn(false);
-        given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(userRepository.saveAndFlush(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         realEncoderService.createUser(command);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(captor.capture());
+        verify(userRepository).saveAndFlush(captor.capture());
         User saved = captor.getValue();
         assertThat(saved.getPassword()).isNotEqualTo("password123");
         assertThat(saved.getPassword()).matches("^\\$2[aby]\\$.+");
@@ -108,7 +110,7 @@ class UserServiceTest {
         assertThatThrownBy(() -> userService.createUser(command))
                 .isInstanceOf(DuplicateEmailException.class);
 
-        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).saveAndFlush(any(User.class));
         verify(passwordEncoder, never()).encode(any());
     }
 
@@ -121,8 +123,20 @@ class UserServiceTest {
         assertThatThrownBy(() -> userService.createUser(command))
                 .isInstanceOf(DuplicateUsernameException.class);
 
-        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).saveAndFlush(any(User.class));
         verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    void 동시_가입으로_유니크_제약이_위반되면_DuplicateUserException이_발생한다() {
+        UserCreateCommand command = new UserCreateCommand("tester", "tester@example.com", "password123", null);
+        given(userRepository.existsByEmail("tester@example.com")).willReturn(false);
+        given(userRepository.existsByUsername("tester")).willReturn(false);
+        given(passwordEncoder.encode("password123")).willReturn("encoded-password");
+        given(userRepository.saveAndFlush(any(User.class))).willThrow(new DataIntegrityViolationException("unique"));
+
+        assertThatThrownBy(() -> userService.createUser(command))
+                .isInstanceOf(DuplicateUserException.class);
     }
 
     @Test

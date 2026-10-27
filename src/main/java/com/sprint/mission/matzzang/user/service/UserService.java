@@ -12,11 +12,13 @@ import com.sprint.mission.matzzang.user.dto.UserResponse;
 import com.sprint.mission.matzzang.user.dto.UserUpdateCommand;
 import com.sprint.mission.matzzang.user.entity.User;
 import com.sprint.mission.matzzang.user.exception.DuplicateEmailException;
+import com.sprint.mission.matzzang.user.exception.DuplicateUserException;
 import com.sprint.mission.matzzang.user.exception.DuplicateUsernameException;
 import com.sprint.mission.matzzang.user.exception.UserNotFoundException;
 import com.sprint.mission.matzzang.user.repository.UserRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -51,7 +53,12 @@ public class UserService {
                 .activityRegion(Region.UNKNOWN)
                 .build();
 
-        return UserResponse.from(userRepository.save(user));
+        try {
+            return UserResponse.from(userRepository.saveAndFlush(user));
+        } catch (DataIntegrityViolationException e) {
+            // 동시 요청으로 exists 검사를 통과한 경우 유니크 제약 위반으로 들어온다
+            throw new DuplicateUserException();
+        }
     }
 
     public UserResponse getUser(Long userId) {
