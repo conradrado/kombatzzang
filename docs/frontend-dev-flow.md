@@ -3,12 +3,12 @@
 ## 1. 개요 및 원칙
 - 백엔드 코드(`src/`, `build.gradle` 등)는 **변경하지 않는다.**
 - `frontend/`는 저장소 루트의 독립 프로젝트(Vite + React, JavaScript)이며 Gradle 빌드와 무관하다.
-- 현재 구현 범위: 로그인 → accessToken 저장 → 인증 API(`GET /api/users`) 호출 → 로그아웃.
+- 현재 구현 범위: 회원가입(`POST /api/users`, `{ username, email, password }`, 인증 불필요) → 로그인 → accessToken 저장 → 인증 API(`GET /api/users`) 호출 → 로그아웃.
 
 ## 2. 사전 준비
 - Node.js 18 이상
 - 백엔드 로컬 실행: `./gradlew bootRun` (local 프로필, PostgreSQL 필요). 기본 포트는 8080이다.
-- 로그인할 계정이 필요하다 (`POST /api/users`로 가입).
+- 로그인할 계정이 필요하다 (프론트 회원가입 화면 또는 `POST /api/users`로 가입).
 
 ## 3. 디렉터리 구조
 ```
@@ -23,6 +23,7 @@ frontend/
     ├── api/client.js       # fetch 래퍼 및 API 함수
     └── components/
         ├── LoginForm.jsx
+        ├── SignupForm.jsx
         └── UserList.jsx
 ```
 
