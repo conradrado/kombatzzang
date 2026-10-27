@@ -8,6 +8,7 @@ public record PostCreateCommand(
         @Size(max = 255)
         String title,
 
+        @Size(max = 10000)
         String body
 ) {
 }
