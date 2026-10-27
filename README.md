@@ -78,6 +78,8 @@ Kombatzzang은 사용자의 경기 기록과 레벨을 분석하여
 - Elasticsearch
 - Kafka
 
+## FrontEnd
+- React
 ## Database
 
 - PostgreSQL
