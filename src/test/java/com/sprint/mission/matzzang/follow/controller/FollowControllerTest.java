@@ -19,6 +19,7 @@ import com.sprint.mission.matzzang.follow.exception.FollowNotFoundException;
 import com.sprint.mission.matzzang.follow.exception.SelfFollowException;
 import com.sprint.mission.matzzang.follow.service.FollowService;
 import com.sprint.mission.matzzang.user.constants.UserRole;
+import com.sprint.mission.matzzang.user.exception.UserNotFoundException;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -83,7 +84,9 @@ class FollowControllerTest {
         mockMvc.perform(post("/api/users/follow")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"followeeId\":1}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("자기 자신은 팔로우할 수 없습니다."));
     }
 
     @Test
@@ -93,7 +96,21 @@ class FollowControllerTest {
         mockMvc.perform(post("/api/users/follow")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"followeeId\":2}"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.message").value("이미 팔로우 중인 사용자입니다."));
+    }
+
+    @Test
+    void 팔로우_대상_유저가_없으면_404가_반환된다() throws Exception {
+        given(followService.follow(1L, 99L)).willThrow(new UserNotFoundException(99L));
+
+        mockMvc.perform(post("/api/users/follow")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"followeeId\":99}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("사용자를 찾을 수 없습니다. id=99"));
     }
 
     @Test
@@ -139,7 +156,9 @@ class FollowControllerTest {
         willThrow(new FollowNotFoundException()).given(followService).unfollow(1L, 2L);
 
         mockMvc.perform(delete("/api/users/2/follow"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("팔로우 관계를 찾을 수 없습니다."));
     }
 
     @Test
