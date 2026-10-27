@@ -10,6 +10,7 @@ import com.sprint.mission.matzzang.user.exception.UserNotFoundException;
 import com.sprint.mission.matzzang.user.repository.UserRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +37,12 @@ public class FollowService {
                 .followerId(followerId)
                 .followingId(followingId)
                 .build();
-        return FollowResponse.from(followRepository.save(follow));
+        try {
+            return FollowResponse.from(followRepository.saveAndFlush(follow));
+        } catch (DataIntegrityViolationException e) {
+            // 동시 요청으로 exists 검사를 통과한 경우 유니크 제약 위반으로 들어온다
+            throw new AlreadyFollowingException();
+        }
     }
 
     @Transactional

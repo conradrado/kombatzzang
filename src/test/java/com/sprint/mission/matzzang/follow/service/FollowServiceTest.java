@@ -23,6 +23,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class FollowServiceTest {
@@ -44,12 +45,12 @@ class FollowServiceTest {
     void 팔로우하면_관계가_저장되고_응답이_반환된다() {
         given(userRepository.existsById(2L)).willReturn(true);
         given(followRepository.existsByFollowerIdAndFollowingId(1L, 2L)).willReturn(false);
-        given(followRepository.save(any(Follow.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(followRepository.saveAndFlush(any(Follow.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         FollowResponse response = followService.follow(1L, 2L);
 
         ArgumentCaptor<Follow> captor = ArgumentCaptor.forClass(Follow.class);
-        verify(followRepository).save(captor.capture());
+        verify(followRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getFollowerId()).isEqualTo(1L);
         assertThat(captor.getValue().getFollowingId()).isEqualTo(2L);
         assertThat(response.followerId()).isEqualTo(1L);
@@ -61,7 +62,7 @@ class FollowServiceTest {
         assertThatThrownBy(() -> followService.follow(1L, 1L))
                 .isInstanceOf(SelfFollowException.class);
 
-        verify(followRepository, never()).save(any());
+        verify(followRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -71,7 +72,7 @@ class FollowServiceTest {
         assertThatThrownBy(() -> followService.follow(1L, 2L))
                 .isInstanceOf(UserNotFoundException.class);
 
-        verify(followRepository, never()).save(any());
+        verify(followRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -82,7 +83,18 @@ class FollowServiceTest {
         assertThatThrownBy(() -> followService.follow(1L, 2L))
                 .isInstanceOf(AlreadyFollowingException.class);
 
-        verify(followRepository, never()).save(any());
+        verify(followRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void 동시에_중복_팔로우되어_유니크_제약에_걸리면_AlreadyFollowingException이_발생한다() {
+        given(userRepository.existsById(2L)).willReturn(true);
+        given(followRepository.existsByFollowerIdAndFollowingId(1L, 2L)).willReturn(false);
+        given(followRepository.saveAndFlush(any(Follow.class)))
+                .willThrow(new DataIntegrityViolationException("duplicate"));
+
+        assertThatThrownBy(() -> followService.follow(1L, 2L))
+                .isInstanceOf(AlreadyFollowingException.class);
     }
 
     @Test
