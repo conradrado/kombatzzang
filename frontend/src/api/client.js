@@ -64,3 +64,34 @@ export function fetchUsers(cursor, size = 10) {
   params.set('size', size);
   return request(`/api/users?${params}`);
 }
+
+export function getCurrentUserId() {
+  try {
+    const payload = getAccessToken().split('.')[1];
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const sub = JSON.parse(atob(padded)).sub;
+    return sub == null ? null : Number(sub);
+  } catch {
+    return null;
+  }
+}
+
+export function fetchUser(userId) {
+  return request(`/api/users/${userId}`);
+}
+
+export function fetchActiveUsers(activityRegion, cursor, size = 5) {
+  const params = new URLSearchParams();
+  params.set('activityRegion', activityRegion);
+  if (cursor != null) params.set('cursor', cursor);
+  params.set('size', size);
+  return request(`/api/users/active?${params}`);
+}
+
+export function signup({ username, email, password }) {
+  return request('/api/users', {
+    method: 'POST',
+    body: { username, email, password },
+  });
+}
