@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -13,9 +14,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.sprint.mission.matzzang.auth.jwt.JwtPrincipal;
 import com.sprint.mission.matzzang.common.exception.GlobalExceptionHandler;
 import com.sprint.mission.matzzang.post.constants.PostStatus;
+import com.sprint.mission.matzzang.post.dto.PostPageResponse;
 import com.sprint.mission.matzzang.post.dto.PostResponse;
+import com.sprint.mission.matzzang.post.exception.PostNotFoundException;
 import com.sprint.mission.matzzang.post.service.PostService;
 import com.sprint.mission.matzzang.user.constants.UserRole;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -117,6 +121,59 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.title").value("수정"));
 
         verify(postService).updatePost(eq(10L), any());
+    }
+
+    @Test
+    void 게시글_단건을_조회하면_200과_응답이_반환된다() throws Exception {
+        given(postService.getPost(10L)).willReturn(response("제목", "내용"));
+
+        mockMvc.perform(get("/api/posts/10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(10))
+                .andExpect(jsonPath("$.title").value("제목"));
+    }
+
+    @Test
+    void 존재하지_않는_게시글을_조회하면_404가_반환된다() throws Exception {
+        given(postService.getPost(99L)).willThrow(new PostNotFoundException(99L));
+
+        mockMvc.perform(get("/api/posts/99"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void 파라미터_없이_목록을_조회하면_기본값으로_서비스를_호출한다() throws Exception {
+        given(postService.getPostList(null, 0, 20)).willReturn(
+                new PostPageResponse(List.of(response("제목", "내용")), 0, 20, 1, 1, false));
+
+        mockMvc.perform(get("/api/posts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(10))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.hasNext").value(false));
+
+        verify(postService).getPostList(null, 0, 20);
+    }
+
+    @Test
+    void 쿼리_파라미터가_서비스로_전달된다() throws Exception {
+        given(postService.getPostList(1L, 2, 5)).willReturn(
+                new PostPageResponse(List.of(), 2, 5, 0, 0, false));
+
+        mockMvc.perform(get("/api/posts").param("userId", "1").param("page", "2").param("size", "5"))
+                .andExpect(status().isOk());
+
+        verify(postService).getPostList(1L, 2, 5);
+    }
+
+    @Test
+    void 잘못된_페이지_파라미터로_목록을_조회하면_400이_반환된다() throws Exception {
+        given(postService.getPostList(null, 0, 1000)).willThrow(new IllegalArgumentException("잘못된 크기"));
+
+        mockMvc.perform(get("/api/posts").param("size", "1000"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
