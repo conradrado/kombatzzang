@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { fetchUsers, logout } from '../api/client.js';
 
-export default function UserList({ onLogout }) {
+export default function UserList({ onLogout, onSelectUser, onOpenMyProfile }) {
+  const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [hasNext, setHasNext] = useState(false);
@@ -15,6 +16,8 @@ export default function UserList({ onLogout }) {
       setHasNext(page.hasNext);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -33,12 +36,15 @@ export default function UserList({ onLogout }) {
 
   return (
     <section>
+      <button onClick={onOpenMyProfile}>내 프로필</button>{' '}
       <button onClick={handleLogout}>로그아웃</button>
+      {loading && <p>불러오는 중...</p>}
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
+      {!loading && !error && users.length === 0 && <p>유저가 없습니다.</p>}
       <ul>
         {users.map((u) => (
           <li key={u.id}>
-            {u.username} ({u.email}) - {u.wins}승 {u.losses}패
+            <a href="#" onClick={(e) => { e.preventDefault(); onSelectUser(u.id); }}>{u.username}</a> ({u.email}) - {u.wins}승 {u.losses}패
           </li>
         ))}
       </ul>
