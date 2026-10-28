@@ -28,7 +28,9 @@ export async function request(path, options = {}) {
     } catch {
       // 본문이 JSON 이 아니면 기본 메시지를 사용한다.
     }
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   if (response.status === 204) return null;
@@ -81,9 +83,11 @@ export function getCurrentUser() {
   const token = getAccessToken();
   if (!token) return null;
   try {
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(base64));
-    return { id: Number(payload.sub), role: payload.role };
+    const segment = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = segment + '='.repeat((4 - (segment.length % 4)) % 4);
+    const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
+    return { id: Number(payload.sub), role: payload.role ?? null };
   } catch {
     return null;
   }
@@ -134,4 +138,27 @@ export function fetchFollowers(userId) {
 
 export function fetchFollowings(userId) {
   return request(`/api/users/${userId}/followings`);
+}
+
+export function fetchPosts(cursor, size = 10) {
+  const params = new URLSearchParams();
+  if (cursor != null) params.set('cursor', cursor);
+  params.set('size', size);
+  return request(`/api/posts?${params}`);
+}
+
+export function fetchPost(postId) {
+  return request(`/api/posts/${postId}`);
+}
+
+export function createPost({ title, body }) {
+  return request('/api/posts', { method: 'POST', body: { title, body } });
+}
+
+export function updatePost(postId, { title, body }) {
+  return request(`/api/posts/${postId}`, { method: 'PATCH', body: { title, body } });
+}
+
+export function deletePost(postId) {
+  return request(`/api/posts/${postId}`, { method: 'DELETE' });
 }
