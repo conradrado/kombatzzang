@@ -3,7 +3,7 @@
 ## 1. 개요 및 원칙
 - 백엔드 코드(`src/`, `build.gradle` 등)는 **변경하지 않는다.**
 - `frontend/`는 저장소 루트의 독립 프로젝트(Vite + React, JavaScript)이며 Gradle 빌드와 무관하다.
-- 현재 구현 범위: 로그인 → accessToken 저장 → 인증 API(`GET /api/users`) 호출 → 로그아웃.
+- 현재 구현 범위: 로그인 → accessToken 저장 → 인증 API(`GET /api/users`) 호출 → 로그아웃, 유저 프로필 조회/수정, 팔로우/언팔로우, 팔로워·팔로잉 목록, 게시글 피드/작성/수정/삭제(10절).
 
 ## 2. 사전 준비
 - Node.js 18 이상
@@ -19,11 +19,18 @@ frontend/
 ├── .gitignore
 └── src/
     ├── main.jsx            # createRoot 진입점
-    ├── App.jsx             # 토큰 유무에 따라 화면 전환
+    ├── App.jsx             # 토큰 유무 및 화면 상태(list/profile/follows) 전환
+    ├── constants.js        # Region/Sport/WeightClass/UserLevel 값
     ├── api/client.js       # fetch 래퍼 및 API 함수
     └── components/
         ├── LoginForm.jsx
-        └── UserList.jsx
+        ├── UserList.jsx
+        ├── UserProfile.jsx
+        ├── ProfileEditForm.jsx
+        ├── FollowList.jsx
+        ├── PostFeed.jsx        # 게시글 카드 목록, 작성/수정/삭제 연동
+        ├── PostForm.jsx        # 작성·수정 공용 폼
+        └── ConfirmModal.jsx    # 삭제 확인 모달
 ```
 
 ## 4. 실행 방법
@@ -64,3 +71,27 @@ cd frontend
 npm run build
 ```
 `frontend/dist`가 생성된다(커밋 대상 아님). 백엔드 static 복사 등 배포 연동은 백엔드 변경이 필요하므로 향후 과제로 남긴다.
+
+## 10. 게시글 화면
+로그인 후 `게시글`(기본) / `유저` 탭으로 전환한다.
+
+### API
+| 함수 | 요청 |
+|---|---|
+| `fetchPosts(cursor, size)` | `GET /api/posts?cursor=&size=` |
+| `fetchPost(postId)` | `GET /api/posts/{postId}` |
+| `createPost({ title, body })` | `POST /api/posts` |
+| `updatePost(postId, { title, body })` | `PATCH /api/posts/{postId}` (작성자 본인 또는 ADMIN) |
+| `deletePost(postId)` | `DELETE /api/posts/{postId}` (ADMIN 전용) |
+
+- 입력 제한: 제목 255자(작성 시 필수), 본문 10000자.
+- `request()`가 던지는 `Error`에는 `status`(HTTP 상태 코드)가 붙는다. 403이면 "권한이 없습니다."를 표시한다.
+
+### 버튼 노출 규칙
+- 수정: 작성자 본인(`post.userId === 현재 userId`) 또는 ADMIN.
+- 삭제: ADMIN만. 확인 모달(`ConfirmModal`)에서 승인해야 `deletePost`를 호출한다.
+- 현재 사용자 정보는 `getCurrentUser()`가 accessToken의 payload를 디코딩해 얻는다. `sub`는 userId, `role`은 권한(ADMIN/USER, 없을 수 있음)이다. 화면 노출용일 뿐 실제 권한 검증은 백엔드가 한다.
+
+### 의존성
+- 목록/상세 조회(`GET /api/posts`, `GET /api/posts/{postId}`)는 #131에서 추가된다. 그 전에는 피드가 에러 상태로 표시된다.
+- 목록 응답은 `CursorPageResponse`(`content`, `nextCursor`, `hasNext`) 형식을 가정한다.
