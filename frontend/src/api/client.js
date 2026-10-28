@@ -75,7 +75,9 @@ export function getCurrentUser() {
     const padded = segment + '='.repeat((4 - (segment.length % 4)) % 4);
     const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
     const payload = JSON.parse(new TextDecoder().decode(bytes));
-    return { userId: Number(payload.sub), role: payload.role ?? null };
+    const userId = Number(payload.sub);
+    // id 는 프로필 화면, userId 는 게시글 화면에서 쓴다.
+    return { id: userId, userId, role: payload.role ?? null };
   } catch {
     return null;
   }
@@ -102,4 +104,36 @@ export function updatePost(postId, { title, body }) {
 
 export function deletePost(postId) {
   return request(`/api/posts/${postId}`, { method: 'DELETE' });
+}
+
+export function fetchUser(userId) {
+  return request(`/api/users/${userId}`);
+}
+
+export function updateUser(userId, body) {
+  return request(`/api/users/${userId}`, { method: 'PATCH', body });
+}
+
+export function updateUserRecord(userId, body) {
+  return request(`/api/users/${userId}/record`, { method: 'PATCH', body });
+}
+
+export function updateUserRegion(userId, region) {
+  return request(`/api/users/${userId}/region`, { method: 'PATCH', body: { region } });
+}
+
+export function follow(followeeId) {
+  return request('/api/users/follow', { method: 'POST', body: { followeeId } });
+}
+
+export function unfollow(userId) {
+  return request(`/api/users/${userId}/follow`, { method: 'DELETE' });
+}
+
+export function fetchFollowers(userId) {
+  return request(`/api/users/${userId}/followers`);
+}
+
+export function fetchFollowings(userId) {
+  return request(`/api/users/${userId}/followings`);
 }

@@ -3,7 +3,7 @@
 ## 1. 개요 및 원칙
 - 백엔드 코드(`src/`, `build.gradle` 등)는 **변경하지 않는다.**
 - `frontend/`는 저장소 루트의 독립 프로젝트(Vite + React, JavaScript)이며 Gradle 빌드와 무관하다.
-- 현재 구현 범위: 로그인 → accessToken 저장 → 인증 API(`GET /api/users`) 호출 → 로그아웃, 게시글 피드/작성/수정/삭제(10절).
+- 현재 구현 범위: 로그인 → accessToken 저장 → 인증 API(`GET /api/users`) 호출 → 로그아웃, 유저 프로필 조회/수정, 팔로우/언팔로우, 팔로워·팔로잉 목록, 게시글 피드/작성/수정/삭제(10절).
 
 ## 2. 사전 준비
 - Node.js 18 이상
@@ -19,11 +19,15 @@ frontend/
 ├── .gitignore
 └── src/
     ├── main.jsx            # createRoot 진입점
-    ├── App.jsx             # 토큰 유무에 따라 화면 전환
+    ├── App.jsx             # 토큰 유무 및 화면 상태(list/profile/follows) 전환
+    ├── constants.js        # Region/Sport/WeightClass/UserLevel 값
     ├── api/client.js       # fetch 래퍼 및 API 함수
     └── components/
         ├── LoginForm.jsx
         ├── UserList.jsx
+        ├── UserProfile.jsx
+        ├── ProfileEditForm.jsx
+        ├── FollowList.jsx
         ├── PostFeed.jsx        # 게시글 카드 목록, 작성/수정/삭제 연동
         ├── PostForm.jsx        # 작성·수정 공용 폼
         └── ConfirmModal.jsx    # 삭제 확인 모달
