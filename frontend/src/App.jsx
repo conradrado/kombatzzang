@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { getAccessToken, getCurrentUser } from './api/client.js';
 import FollowList from './components/FollowList.jsx';
 import HomePage from './components/HomePage.jsx';
+import PostFeed from './components/PostFeed.jsx';
 import UserList from './components/UserList.jsx';
 import UserProfile from './components/UserProfile.jsx';
 
 const HOME_SCREEN = { name: 'home' };
 const LIST_SCREEN = { name: 'list' };
+const POSTS_SCREEN = { name: 'posts' };
 
 export default function App() {
   const [token, setToken] = useState(getAccessToken());
@@ -34,6 +36,14 @@ export default function App() {
         />
       );
     }
+    if (token && screen.name === 'posts') {
+      return (
+        <>
+          <button onClick={() => setScreen(HOME_SCREEN)}>홈</button>
+          <PostFeed />
+        </>
+      );
+    }
     if (token && screen.name === 'list') {
       return (
         <>
@@ -59,6 +69,7 @@ export default function App() {
           onLogin={() => setToken(getAccessToken())}
           onLogout={() => setToken(null)}
         />
+        {token && <button onClick={() => setScreen(POSTS_SCREEN)}>게시글</button>}
         {token && <button onClick={() => setScreen(LIST_SCREEN)}>유저 목록</button>}
       </>
     );
