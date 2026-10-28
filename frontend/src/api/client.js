@@ -64,3 +64,47 @@ export function fetchUsers(cursor, size = 10) {
   params.set('size', size);
   return request(`/api/users?${params}`);
 }
+
+export function getCurrentUser() {
+  const token = getAccessToken();
+  if (!token) return null;
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(base64));
+    return { id: Number(payload.sub), role: payload.role };
+  } catch {
+    return null;
+  }
+}
+
+export function fetchUser(userId) {
+  return request(`/api/users/${userId}`);
+}
+
+export function updateUser(userId, body) {
+  return request(`/api/users/${userId}`, { method: 'PATCH', body });
+}
+
+export function updateUserRecord(userId, body) {
+  return request(`/api/users/${userId}/record`, { method: 'PATCH', body });
+}
+
+export function updateUserRegion(userId, region) {
+  return request(`/api/users/${userId}/region`, { method: 'PATCH', body: { region } });
+}
+
+export function follow(followeeId) {
+  return request('/api/users/follow', { method: 'POST', body: { followeeId } });
+}
+
+export function unfollow(userId) {
+  return request(`/api/users/${userId}/follow`, { method: 'DELETE' });
+}
+
+export function fetchFollowers(userId) {
+  return request(`/api/users/${userId}/followers`);
+}
+
+export function fetchFollowings(userId) {
+  return request(`/api/users/${userId}/followings`);
+}
