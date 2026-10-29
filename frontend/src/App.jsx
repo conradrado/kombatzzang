@@ -68,6 +68,7 @@ export default function App() {
           token={token}
           onLogin={() => setToken(getAccessToken())}
           onLogout={() => setToken(null)}
+          onSelectUser={openProfile}
         />
         {token && <button onClick={() => setScreen(POSTS_SCREEN)}>게시글</button>}
         {token && <button onClick={() => setScreen(LIST_SCREEN)}>유저 목록</button>}

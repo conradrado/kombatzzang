@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   fetchActiveUsers,
+  fetchPosts,
   fetchUser,
   getCurrentUserId,
   logout,
@@ -13,7 +14,7 @@ function winRate(user) {
   return total === 0 ? '-' : `${Math.round((user.wins / total) * 100)}%`;
 }
 
-export default function HomePage({ token, onLogin, onLogout }) {
+export default function HomePage({ token, onLogin, onLogout, onSelectUser }) {
   const [mode, setMode] = useState(null);
   const [me, setMe] = useState(null);
   const [meLoading, setMeLoading] = useState(!!token);
@@ -21,6 +22,34 @@ export default function HomePage({ token, onLogin, onLogout }) {
   const [activeUsers, setActiveUsers] = useState([]);
   const [activeLoading, setActiveLoading] = useState(false);
   const [activeError, setActiveError] = useState(null);
+  const [recentPosts, setRecentPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsError, setPostsError] = useState(null);
+
+  useEffect(() => {
+    if (!token) {
+      setRecentPosts([]);
+      return;
+    }
+
+    let cancelled = false;
+    const loadPosts = async () => {
+      setPostsLoading(true);
+      setPostsError(null);
+      try {
+        const page = await fetchPosts(null, 5);
+        if (!cancelled) setRecentPosts(Array.isArray(page) ? page : page.content ?? []);
+      } catch (err) {
+        if (!cancelled) setPostsError(err.message);
+      } finally {
+        if (!cancelled) setPostsLoading(false);
+      }
+    };
+    loadPosts();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
     if (!token) {
@@ -119,7 +148,16 @@ export default function HomePage({ token, onLogin, onLogout }) {
 
           <section>
             <h2>최근 게시글</h2>
-            <p>최근 게시글이 없습니다.</p>
+            {postsLoading && <p>불러오는 중...</p>}
+            {postsError && <p style={{ color: 'crimson' }}>{postsError}</p>}
+            {!postsLoading && !postsError && recentPosts.length === 0 && (
+              <p>최근 게시글이 없습니다.</p>
+            )}
+            <ul>
+              {recentPosts.map((post) => (
+                <li key={post.id}>{post.title}</li>
+              ))}
+            </ul>
           </section>
 
           <section>
@@ -132,7 +170,10 @@ export default function HomePage({ token, onLogin, onLogout }) {
             <ul>
               {activeUsers.map((u) => (
                 <li key={u.id}>
-                  {u.username} - {u.wins}승 {u.losses}패
+                  <button type="button" onClick={() => onSelectUser?.(u.id)}>
+                    {u.username}
+                  </button>{' '}
+                  - {u.wins}승 {u.losses}패
                 </li>
               ))}
             </ul>
