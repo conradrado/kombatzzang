@@ -3,7 +3,8 @@
 ## 1. 개요 및 원칙
 - 백엔드 코드(`src/`, `build.gradle` 등)는 **변경하지 않는다.**
 - `frontend/`는 저장소 루트의 독립 프로젝트(Vite + React, JavaScript)이며 Gradle 빌드와 무관하다.
-- 현재 구현 범위: 로그인 → accessToken 저장 → 인증 API(`GET /api/users`) 호출 → 로그아웃.
+- 현재 구현 범위: 회원가입(`POST /api/users`) → 로그인 → accessToken 저장 → 인증 API(`GET /api/users`) 호출 → 로그아웃.
+- 회원가입: 닉네임/이메일/비밀번호/비밀번호 확인을 클라이언트에서 검증(백엔드 `UserCreateCommand`와 동일 제약)한 뒤 API를 호출한다. 409(중복)·400 등 서버 오류는 `message`를 표시하고, 성공하면 로그인 화면으로 돌아가 완료 메시지를 보여 준다. 409 응답에 `message`가 없으면 기본 중복 안내 문구를 표시한다.
 
 ## 2. 사전 준비
 - Node.js 18 이상 (권장: LTS 22, `frontend/.nvmrc`). Node 25 이상은 내장 `localStorage` 가 jsdom 을 가려 테스트가 깨지므로 `NODE_OPTIONS=--no-experimental-webstorage` 를 주고 실행한다.
@@ -21,10 +22,17 @@ frontend/
 └── src/
     ├── test/setup.js       # 테스트 공통 설정 (jest-dom 매처)
     ├── main.jsx            # createRoot 진입점
-    ├── App.jsx             # 토큰 유무에 따라 화면 전환
-    ├── api/client.js       # fetch 래퍼 및 API 함수
+    ├── App.jsx             # 토큰 유무 및 login/signup 화면 전환
+    ├── App.test.jsx
+    ├── api/client.js       # fetch 래퍼 및 API 함수 (signup 요청에는 인증 헤더를 붙이지 않음)
+    ├── api/client.test.js
+    ├── test/setup.js       # vitest 설정(jest-dom)
     └── components/
         ├── LoginForm.jsx
+        ├── SignupForm.jsx
+        ├── SignupForm.test.jsx
+        ├── signupValidation.js
+        ├── signupValidation.test.js
         └── UserList.jsx
 ```
 
@@ -67,7 +75,15 @@ npm test
 3. `App.jsx`에서 컴포넌트를 import해 화면에 연결한다.
 4. `npm run dev`로 브라우저에서 확인하고, 요청/응답은 Swagger UI와 비교한다.
 
-## 9. 빌드
+## 9. 테스트
+Vitest + jsdom + Testing Library를 사용하며 백엔드 없이 `fetch`를 mock해 실행한다.
+```
+cd frontend
+npm install
+npm test
+```
+
+## 10. 빌드
 ```
 cd frontend
 npm run build
