@@ -477,6 +477,83 @@ class IntegrateTest(unittest.TestCase):
             self.integrator(ok=False).integrate(1, self.wt[1], "feature/1-w", "t")
 
 
+class VerifyFrontendTest(unittest.TestCase):
+    """verify.run_verify 의 프론트엔드 단계. 실제 gradle/npm 대신 verify._run 을 가짜로 바꿔 검증한다."""
+
+    def setUp(self):
+        import verify
+        self.verify = verify
+        self.tmp = tempfile.TemporaryDirectory()
+        self.repo = Path(self.tmp.name)
+        (self.repo / "frontend" / "node_modules").mkdir(parents=True)
+        self.write_pkg({"test": "vitest"})
+        self.cfg = load_config()
+        self.calls = []
+        self.codes = {}  # 명령 종류별 종료 코드. 기본은 모두 0
+        self._orig = (verify._run, verify.frontend_changed, verify.shutil.which)
+        verify._run = self.fake_run
+        verify.frontend_changed = lambda cfg, repo: self.changed
+        verify.shutil.which = lambda name: "npm"
+        self.changed = True
+
+    def tearDown(self):
+        self.verify._run, self.verify.frontend_changed, self.verify.shutil.which = self._orig
+        self.tmp.cleanup()
+
+    def write_pkg(self, scripts):
+        (self.repo / "frontend" / "package.json").write_text(json.dumps({"scripts": scripts}), encoding="utf-8")
+        os.utime(self.repo / "frontend" / "node_modules", (9e9, 9e9))  # node_modules 가 더 최근 → 설치 불필요
+
+    def fake_run(self, cmd, cwd, timeout, env=None):
+        kind = "backend" if "gradlew" in cmd[0] else ("install" if "install" in cmd else "test")
+        self.calls.append(kind)
+        return self.codes.get(kind, 0), f"{kind} output", False
+
+    def run_verify(self):
+        return self.verify.run_verify(self.cfg, {}, str(self.repo), self.repo / "verify.log")
+
+    def test_skips_frontend_when_unchanged(self):
+        self.changed = False
+        r = self.run_verify()
+        self.assertTrue(r.passed)
+        self.assertEqual(self.calls, ["backend"])
+
+    def test_runs_frontend_tests_when_changed(self):
+        r = self.run_verify()
+        self.assertTrue(r.passed)
+        self.assertEqual(self.calls, ["backend", "test"])  # node_modules 가 최신이라 설치는 생략
+        self.assertEqual(r.stages, [("backend", True), ("frontend", True)])
+
+    def test_frontend_failure_fails_even_if_backend_passes(self):
+        self.codes["test"] = 1
+        r = self.run_verify()
+        self.assertFalse(r.passed)
+        self.assertEqual(r.exit_code, 1)
+        self.assertIn("[frontend] FAIL", r.log_tail)
+
+    def test_node_options_passed_to_npm_env(self):
+        envs = []
+        orig = self.verify._run
+        self.verify._run = lambda cmd, cwd, timeout, env=None: (envs.append(env), orig(cmd, cwd, timeout, env))[1]
+        self.cfg["verify"]["frontend"]["node_options"] = "--no-experimental-webstorage"
+        self.run_verify()
+        self.assertIn("--no-experimental-webstorage", envs[-1]["NODE_OPTIONS"])
+        self.assertEqual(envs[-1]["CI"], "1")
+
+    def test_missing_test_script_fails(self):
+        self.write_pkg({"dev": "vite"})
+        r = self.run_verify()
+        self.assertFalse(r.passed)
+        self.assertNotIn("test", self.calls)
+
+    def test_install_failure_skips_tests_and_retries_once(self):
+        os.utime(self.repo / "frontend" / "node_modules", (1, 1))  # package.json 이 더 최근 → 설치 필요
+        self.codes["install"] = 1
+        r = self.run_verify()
+        self.assertFalse(r.passed)
+        self.assertEqual(self.calls, ["backend", "install", "install"])
+
+
 class SchemaTest(unittest.TestCase):
     def test_validate(self):
         validate(PLAN, PLAN_SCHEMA)
