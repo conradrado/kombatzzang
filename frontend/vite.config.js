@@ -5,6 +5,11 @@ import react from '@vitejs/plugin-react';
 // SSE(/api/battles/subscribe)도 같은 프록시를 탄다.
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test/setup.js',
+  },
   server: {
     port: 5173,
     proxy: {
