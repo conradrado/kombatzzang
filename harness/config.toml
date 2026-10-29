@@ -11,6 +11,18 @@ verify_timeout_sec = 900
 command = ["gradlew", "test", "--console=plain"]
 log_tail_chars = 6000
 
+# frontend/ 가 바뀐 이슈에서만 실행한다. 첫 항목(npm)은 OS에 맞게 해석된다.
+[verify.frontend]
+enabled = true
+dir = "frontend"
+install = ["npm", "install", "--no-audit", "--no-fund"]   # package-lock.json 이 없어 ci 대신 install
+test = ["npm", "test", "--", "--run"]
+install_timeout_sec = 600
+test_timeout_sec = 600
+# Node 25+ 내장 localStorage 가 jsdom 것을 가려 테스트가 깨지는 것을 막는다. Node 22 이하는 이 옵션을 몰라 오류가 나므로 비운다.
+node_options = "--no-experimental-webstorage"
+npm_cache = ""   # 병렬 실행 시 worktree 들이 공유할 npm 캐시 경로. 비우면 npm 기본값
+
 [git]
 protected_branches = ["main", "dev"]
 base_branch = "dev"          # 새 브랜치를 따 오는 기준 브랜치
