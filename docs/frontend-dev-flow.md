@@ -6,7 +6,7 @@
 - 현재 구현 범위: 로그인 → accessToken 저장 → 인증 API(`GET /api/users`) 호출 → 로그아웃.
 
 ## 2. 사전 준비
-- Node.js 18 이상
+- Node.js 18 이상 (권장: LTS 22, `frontend/.nvmrc`). Node 25 이상은 내장 `localStorage` 가 jsdom 을 가려 테스트가 깨지므로 `NODE_OPTIONS=--no-experimental-webstorage` 를 주고 실행한다.
 - 백엔드 로컬 실행: `./gradlew bootRun` (local 프로필, PostgreSQL 필요). 기본 포트는 8080이다.
 - 로그인할 계정이 필요하다 (`POST /api/users`로 가입).
 
@@ -15,9 +15,11 @@
 frontend/
 ├── index.html
 ├── package.json
-├── vite.config.js
+├── vite.config.js          # 프록시 및 vitest(test) 설정
+├── .nvmrc
 ├── .gitignore
 └── src/
+    ├── test/setup.js       # 테스트 공통 설정 (jest-dom 매처)
     ├── main.jsx            # createRoot 진입점
     ├── App.jsx             # 토큰 유무에 따라 화면 전환
     ├── api/client.js       # fetch 래퍼 및 API 함수
@@ -33,6 +35,13 @@ npm install
 npm run dev
 ```
 접속: http://localhost:5173 (백엔드가 8080에서 실행 중이어야 한다.)
+
+테스트 (vitest + Testing Library, 백엔드 불필요):
+```
+cd frontend
+npm test
+```
+테스트 파일은 대상 옆에 `*.test.js(x)` 로 둔다. 테스트 때문에 `package.json` 이나 `vite.config.js` 를 수정할 필요는 없다.
 
 ## 5. 프록시와 CORS
 `SecurityConfig`에 CORS 설정이 없으므로 브라우저가 `http://localhost:8080`을 직접 호출하면 막힌다.
